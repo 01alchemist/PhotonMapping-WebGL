@@ -4,7 +4,7 @@ class Vector2 {
     }
 }
 
-class Vector3 {
+class Vector4 {
     constructor(public x: number = 0.0, public y: number = 0.0, public z: number = 0.0) {
 
     }

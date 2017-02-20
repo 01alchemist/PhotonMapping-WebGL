@@ -1,0 +1,25 @@
+{
+  "name": "photonmapping-webgl",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/01alchemist/PhotonMapping-WebGL.git"
+  },
+  "author": "01alchemist",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/01alchemist/PhotonMapping-WebGL/issues"
+  },
+  "homepage": "https://github.com/01alchemist/PhotonMapping-WebGL#readme",
+  "dependencies": {
+    "systemjs": "^0.20.9"
+  }
+}

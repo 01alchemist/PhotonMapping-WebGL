@@ -92,12 +92,17 @@ export class Mesh {
     public load(mesh:THREE.Mesh, position:Vector3, scale:number)
     {
 
-        let position = mesh.geometry.attributes.position
+        let vertices = mesh.geometry.attributes.position.array;
+        let normals = mesh.geometry.attributes.normal ? mesh.geometry.attributes.normal.array: null;
+        let texcoords = mesh.geometry.attributes.uv ? mesh.geometry.attributes.uv.array:null;
+        let indicesAttr = mesh.geometry.getIndex();
+        let indices:Uint32Array = indicesAttr?indicesAttr.array:null;
 
         let haveLightSource:boolean = false;
-        this.triangles.resize(nIndices / 3);
+        // this.triangles.resize(nIndices / 3);
+        this.triangles = [];
 
-        if (matid != NULL)
+        if (mesh.material != null)
         {
             for (let i:number = 0; i < mtls.length; i++)
             {
@@ -105,7 +110,7 @@ export class Mesh {
                 if (mtls[i].isTextured)
                 {
                     this.materials[i].texture.clear();
-                    for (unsigned int j = 0; j < mtls[i].texture.length; j++)
+                    for (let j = 0; j < mtls[i].texture.length; j++)
                     {
                         this.materials[i].texture.push(mtls[i].texture[j]);
                     }
@@ -115,17 +120,17 @@ export class Mesh {
             {
                 // Lambertian
                 this.materials[i].brdf = 0;
-                this.materials[i].eta = 1.7f;
-                this.materials[i].specularity = 1.0f;
+                this.materials[i].eta = 1.7;
+                this.materials[i].specularity = 1.0;
 
-                if (mtls[i].Ns == 100.0f)
+                if (mtls[i].Ns == 100.0)
                 {
-                    if (mtls[i].Ks.dot(mtls[i].Ks) == 3.0f)
+                    if (mtls[i].Ks.dot(mtls[i].Ks) == 3.0)
                     {
                         // mirror
                         this.materials[i].brdf = 1;
                     }
-                    else if (mtls[i].Ks.dot(mtls[i].Ks) > 0.0f)
+                    else if (mtls[i].Ks.dot(mtls[i].Ks) > 0.0)
                     {
                         // plastic
                         this.materials[i].brdf = 3;
@@ -133,13 +138,13 @@ export class Mesh {
                 }
                 else
                 {
-                    this.materials[i].specularity = std::max(mtls[i].Ns / 100.0f, 0.5f);
-                    if (mtls[i].Ks.dot(mtls[i].Ks) == 3.0f)
+                    this.materials[i].specularity = Math.max(mtls[i].Ns / 100.0, 0.5);
+                    if (mtls[i].Ks.dot(mtls[i].Ks) == 3.0)
                     {
                         // glossy mirror
                         this.materials[i].brdf = 4;
                     }
-                    else if (mtls[i].Ks.dot(mtls[i].Ks) > 0.0f)
+                    else if (mtls[i].Ks.dot(mtls[i].Ks) > 0.0)
                     {
                         // glossy plastic
                         this.materials[i].brdf = 6;
@@ -148,8 +153,8 @@ export class Mesh {
 
                 if (mtls[i].name.compare(0, 5, "glass", 0, 5) == 0)
                 {
-                this.materials[i].eta = mtls[i].Ks.dot(mtls[i].Ks) / 3.0f + 1.0f;
-                    if (mtls[i].Ns == 100.0f)
+                this.materials[i].eta = mtls[i].Ks.dot(mtls[i].Ks) / 3.0 + 1.0;
+                    if (mtls[i].Ns == 100.0)
                     {
                         // glass
                         this.materials[i].brdf = 2;
@@ -157,12 +162,12 @@ export class Mesh {
                     else
                     {
                         // glossy glass
-                        this.materials[i].specularity = std::max(mtls[i].Ns / 100.0f, 0.5f);
+                        this.materials[i].specularity = Math.max(mtls[i].Ns / 100.0, 0.5);
                         this.materials[i].brdf = 5;
                     }
                 }
 
-                if (mtls[i].Ka.dot(mtls[i].Ka) > 0.0f)
+                if (mtls[i].Ka.dot(mtls[i].Ka) > 0.0)
                 {
                     // light source
                     this.materials[i].brdf = -1;
@@ -171,7 +176,7 @@ export class Mesh {
 
                 if ((this.materials[i].brdf == 0) || (this.materials[i].brdf == 3))
                 {
-                    mtls[i].Kd = mtls[i].Kd * 0.9f;
+                    mtls[i].Kd = mtls[i].Kd * 0.9;
                 }
 
                 if ((this.materials[i].brdf == 2) || (this.materials[i].brdf == 5))
@@ -201,22 +206,22 @@ export class Mesh {
 
         for (let i:number = 0; i < this.triangles.length; i++)
         {
-            const int v0 = indices[i * 3 + 0];
-            const int v1 = indices[i * 3 + 1];
-            const int v2 = indices[i * 3 + 2];
+            const v0 = indices[i * 3];
+            const v1 = indices[i * 3 + 1];
+            const v2 = indices[i * 3 + 2];
 
-            this.triangles[i].positions[0] = Vector3(vertices[v0 * 3 + 0], vertices[v0 * 3 + 1], vertices[v0 * 3 + 2]);
-            this.triangles[i].positions[1] = Vector3(vertices[v1 * 3 + 0], vertices[v1 * 3 + 1], vertices[v1 * 3 + 2]);
-            this.triangles[i].positions[2] = Vector3(vertices[v2 * 3 + 0], vertices[v2 * 3 + 1], vertices[v2 * 3 + 2]);
+            this.triangles[i].positions[0] = new Vector3(vertices[v0 * 3], vertices[v0 * 3 + 1], vertices[v0 * 3 + 2]);
+            this.triangles[i].positions[1] = new Vector3(vertices[v1 * 3], vertices[v1 * 3 + 1], vertices[v1 * 3 + 2]);
+            this.triangles[i].positions[2] = new Vector3(vertices[v2 * 3], vertices[v2 * 3 + 1], vertices[v2 * 3 + 2]);
             this.triangles[i].positions[0] = this.triangles[i].positions[0] * scale + position;
             this.triangles[i].positions[1] = this.triangles[i].positions[1] * scale + position;
             this.triangles[i].positions[2] = this.triangles[i].positions[2] * scale + position;
 
-            if (normals != NULL)
+            if (normals != null)
             {
-                this.triangles[i].normals[0] = Vector3(normals[v0 * 3 + 0], normals[v0 * 3 + 1], normals[v0 * 3 + 2]);
-                this.triangles[i].normals[1] = Vector3(normals[v1 * 3 + 0], normals[v1 * 3 + 1], normals[v1 * 3 + 2]);
-                this.triangles[i].normals[2] = Vector3(normals[v2 * 3 + 0], normals[v2 * 3 + 1], normals[v2 * 3 + 2]);
+                this.triangles[i].normals[0] = new Vector3(normals[v0 * 3], normals[v0 * 3 + 1], normals[v0 * 3 + 2]);
+                this.triangles[i].normals[1] = new Vector3(normals[v1 * 3], normals[v1 * 3 + 1], normals[v1 * 3 + 2]);
+                this.triangles[i].normals[2] = new Vector3(normals[v2 * 3], normals[v2 * 3 + 1], normals[v2 * 3 + 2]);
             }
             else
             {
@@ -232,29 +237,29 @@ export class Mesh {
 
             // material id
             this.triangles[i].idMaterial = 0;
-            if (matid != NULL)
+            if (matid != null)
             {
                 // read texture coordinates
-                if ((texcoords != NULL) && mtls[matid[i]].isTextured)
+                if ((texcoords != null) && mtls[matid[i]].isTextured)
                 {
-                    this.triangles[i].texcoords[0] = Vector2(texcoords[v0 * 2 + 0], texcoords[v0 * 2 + 1]);
-                    this.triangles[i].texcoords[1] = Vector2(texcoords[v1 * 2 + 0], texcoords[v1 * 2 + 1]);
-                    this.triangles[i].texcoords[2] = Vector2(texcoords[v2 * 2 + 0], texcoords[v2 * 2 + 1]);
+                    this.triangles[i].texcoords[0] = new Vector2(texcoords[v0 * 2], texcoords[v0 * 2 + 1]);
+                    this.triangles[i].texcoords[1] = new Vector2(texcoords[v1 * 2], texcoords[v1 * 2 + 1]);
+                    this.triangles[i].texcoords[2] = new Vector2(texcoords[v2 * 2], texcoords[v2 * 2 + 1]);
                 }
                 else
                 {
-                    this.triangles[i].texcoords[0] = Vector2(1.0e+30f, 1.0e+30f);
-                    this.triangles[i].texcoords[1] = Vector2(1.0e+30f, 1.0e+30f);
-                    this.triangles[i].texcoords[2] = Vector2(1.0e+30f, 1.0e+30f);
+                    this.triangles[i].texcoords[0] = new Vector2(1.0e+30, 1.0e+30);
+                    this.triangles[i].texcoords[1] = new Vector2(1.0e+30, 1.0e+30);
+                    this.triangles[i].texcoords[2] = new Vector2(1.0e+30, 1.0e+30);
                 }
 
                 this.triangles[i].idMaterial = matid[i];
             }
             else
             {
-                this.triangles[i].texcoords[0] = Vector2(1.0e+30f, 1.0e+30f);
-                this.triangles[i].texcoords[1] = Vector2(1.0e+30f, 1.0e+30f);
-                this.triangles[i].texcoords[2] = Vector2(1.0e+30f, 1.0e+30f);
+                this.triangles[i].texcoords[0] = new Vector2(1.0e+30, 1.0e+30);
+                this.triangles[i].texcoords[1] = new Vector2(1.0e+30, 1.0e+30);
+                this.triangles[i].texcoords[2] = new Vector2(1.0e+30, 1.0e+30);
             }
         }
 

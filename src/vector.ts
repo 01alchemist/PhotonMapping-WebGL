@@ -1,16 +1,16 @@
-class Vector2 {
+export class Vector2 {
     constructor(public x: number = 0.0, public y: number = 0.0) {
 
     }
 }
 
-class Vector4 {
+export class Vector4 {
     constructor(public x: number = 0.0, public y: number = 0.0, public z: number = 0.0) {
 
     }
 }
 
-class Vector3 {
+export class Vector3 {
     constructor(public x: number = 0.0, public y: number = 0.0, public z: number = 0.0, public w: number = 0.0) {
 
     }
@@ -61,7 +61,7 @@ class Vector3 {
     }
 
     op_remainder(b: Vector3): Vector3 {
-        return Vector3(this.y * b.z - this.z * b.y, this.z * b.x - this.x * b.z, this.x * b.y - this.y * b.x);
+        return new Vector3(this.y * b.z - this.z * b.y, this.z * b.x - this.x * b.z, this.x * b.y - this.y * b.x);
     }
 
     maximize(b: Vector3): Vector3 {

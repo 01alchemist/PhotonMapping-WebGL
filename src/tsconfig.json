@@ -4,5 +4,9 @@
     "moduleResolution": "node",
     "target": "es6",
     "outDir": "../bin"
-  }
+  },
+  "files": [
+    "decleration.d.ts",
+    "obj.ts"
+  ]
 }

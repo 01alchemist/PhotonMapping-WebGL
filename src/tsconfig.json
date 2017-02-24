@@ -3,10 +3,10 @@
     "module": "system",
     "moduleResolution": "node",
     "target": "es6",
-    "outDir": "../bin"
+    "sourceMap": true
   },
   "files": [
     "decleration.d.ts",
-    "obj.ts"
+    "xray.ts"
   ]
 }

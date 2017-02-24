@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Test</title>
+    <script src="../node_modules/systemjs/dist/system.src.js"></script>
+    <script>
+        System.config({
+            baseURL: "../",
+            packages: {
+                "test": {
+                    format: "register",
+                    defaultExtension: "js"
+                },
+                "src": {
+                    format: "register",
+                    defaultExtension: "js"
+                }
+            }
+        });
+    </script>
+    <script>
+
+        System.import('test/TestObjLoader').then(function (module) {
+                    window.app = new module.TestObjLoader();
+                }, console.error.bind(console));
+
+//        System.import('../bin/xray.js').then(function (m) {
+        //
+        //            System.import("xray").then(function (module) {
+        //                console.log(module.parseOBJ);
+        //
+        //
+        //            })
+        //
+        //        }, console.error.bind(console));
+
+    </script>
+</head>
+<body>
+
+</body>
+</html>

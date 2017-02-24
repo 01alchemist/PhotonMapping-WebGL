@@ -1,14 +1,17 @@
+import {Vector3, Vector2} from "./vector";
+import {BBox} from "./bbox";
+import {mtls, parseOBJ} from "./obj";
 /**
  * Created by nidin on 2017-02-18.
  */
 
 export class Triangle {
-    constructor(public positions: Vector3[],
-                public normals: Vector3[],
-                public texcoords: Vector2[],
-                public bbox: BBox,
-                public centroid: Vector3,
-                public idMaterial: number) {
+    constructor(public positions: Vector3[]=[],
+                public normals: Vector3[]=[],
+                public texcoords: Vector2[]=[],
+                public bbox: BBox=new BBox(),
+                public centroid: Vector3=new Vector3(),
+                public idMaterial?: number) {
     }
 }
 
@@ -28,12 +31,12 @@ export class Material {
 }
 
 export class Mesh {
-    constructor(public triangles: Triangle[],
-                public materials: Material[],
-                public lightsCDF: Float32Array,
-                public lightsIndices: Int32Array,
-                public lightsArea: number,
-                public bbox: BBox) {
+    constructor(public triangles: Triangle[] = [],
+                public materials: Material[] = [],
+                public lightsCDF?: Float32Array,
+                public lightsIndices?: Int32Array,
+                public lightsArea?: number,
+                public bbox: BBox = new BBox()) {
 
     }
 
@@ -89,30 +92,29 @@ export class Mesh {
         this.materials = null;
     }
 
-    public load(mesh:THREE.Mesh, position:Vector3, scale:number)
+    public load(geometry, position:Vector3, scale:number)
     {
 
-        let vertices = mesh.geometry.attributes.position.array;
-        let normals = mesh.geometry.attributes.normal ? mesh.geometry.attributes.normal.array: null;
-        let texcoords = mesh.geometry.attributes.uv ? mesh.geometry.attributes.uv.array:null;
-        let indicesAttr = mesh.geometry.getIndex();
-        let indices:Uint32Array = indicesAttr?indicesAttr.array:null;
+        let vertices:Float32Array = geometry.vertices;
+        let normals:Float32Array = geometry.normals ? geometry.normals: null;
+        let texcoords:Float32Array = geometry.texcoords ? geometry.texcoords:null;
+        let indices:Int32Array = geometry.indices;
 
         let haveLightSource:boolean = false;
-        // this.triangles.resize(nIndices / 3);
+        let numTriabgles  = indices.length / 3;
         this.triangles = [];
 
-        if (mesh.material != null)
+        if (geometry.materialIds != null)
         {
             for (let i:number = 0; i < mtls.length; i++)
             {
                 this.materials.push(mtls[i]);
                 if (mtls[i].isTextured)
                 {
-                    this.materials[i].texture.clear();
+                    this.materials[i].texture = new Uint8Array(mtls[i].texture.length);
                     for (let j = 0; j < mtls[i].texture.length; j++)
                     {
-                        this.materials[i].texture.push(mtls[i].texture[j]);
+                        this.materials[i].texture[j] = mtls[i].texture[j];
                     }
                 }
             }
@@ -151,9 +153,9 @@ export class Mesh {
                     }
                 }
 
-                if (mtls[i].name.compare(0, 5, "glass", 0, 5) == 0)
-                {
-                this.materials[i].eta = mtls[i].Ks.dot(mtls[i].Ks) / 3.0 + 1.0;
+                if (mtls[i].name.substring(0, 5) == "glass") {
+
+                    this.materials[i].eta = mtls[i].Ks.dot(mtls[i].Ks) / 3.0 + 1.0;
                     if (mtls[i].Ns == 100.0)
                     {
                         // glass
@@ -176,19 +178,19 @@ export class Mesh {
 
                 if ((this.materials[i].brdf == 0) || (this.materials[i].brdf == 3))
                 {
-                    mtls[i].Kd = mtls[i].Kd * 0.9;
+                    mtls[i].Kd = mtls[i].Kd.mulScalar(0.9);
                 }
 
                 if ((this.materials[i].brdf == 2) || (this.materials[i].brdf == 5))
                 {
-                    mtls[i].Kd.x = sqrtf(mtls[i].Kd.x);
-                    mtls[i].Kd.y = sqrtf(mtls[i].Kd.y);
-                    mtls[i].Kd.z = sqrtf(mtls[i].Kd.z);
+                    mtls[i].Kd.x = Math.sqrt(mtls[i].Kd.x);
+                    mtls[i].Kd.y = Math.sqrt(mtls[i].Kd.y);
+                    mtls[i].Kd.z = Math.sqrt(mtls[i].Kd.z);
                 }
 
                 this.materials[i].color = mtls[i].Kd;
 
-                if (mtls[i].name.compare(0, 3, "sss", 0, 3) == 0)
+                if (mtls[i].name.substring(0, 3) == "sss")
                 {
                     this.materials[i].brdf = 7;
                 }
@@ -204,18 +206,18 @@ export class Mesh {
             this.materials.push(mtl);
         }
 
-        for (let i:number = 0; i < this.triangles.length; i++)
+        for (let i:number = 0; i < numTriabgles; i++)
         {
             const v0 = indices[i * 3];
             const v1 = indices[i * 3 + 1];
             const v2 = indices[i * 3 + 2];
-
+            this.triangles[i] = new Triangle();
             this.triangles[i].positions[0] = new Vector3(vertices[v0 * 3], vertices[v0 * 3 + 1], vertices[v0 * 3 + 2]);
             this.triangles[i].positions[1] = new Vector3(vertices[v1 * 3], vertices[v1 * 3 + 1], vertices[v1 * 3 + 2]);
             this.triangles[i].positions[2] = new Vector3(vertices[v2 * 3], vertices[v2 * 3 + 1], vertices[v2 * 3 + 2]);
-            this.triangles[i].positions[0] = this.triangles[i].positions[0] * scale + position;
-            this.triangles[i].positions[1] = this.triangles[i].positions[1] * scale + position;
-            this.triangles[i].positions[2] = this.triangles[i].positions[2] * scale + position;
+            this.triangles[i].positions[0] = this.triangles[i].positions[0].mulScalar(scale).add(position);
+            this.triangles[i].positions[1] = this.triangles[i].positions[1].mulScalar(scale).add(position);
+            this.triangles[i].positions[2] = this.triangles[i].positions[2].mulScalar(scale).add(position);
 
             if (normals != null)
             {
@@ -226,9 +228,9 @@ export class Mesh {
             else
             {
                 // no normal data, calculate the normal for a polygon
-                const Vector3 e0 = this.triangles[i].positions[1] - this.triangles[i].positions[0];
-                const Vector3 e1 = this.triangles[i].positions[2] - this.triangles[i].positions[0];
-                const Vector3 n = (e0 % e1).normalize();
+                const e0:Vector3 = this.triangles[i].positions[1].sub(this.triangles[i].positions[0]);
+                const e1:Vector3 = this.triangles[i].positions[2].sub(this.triangles[i].positions[0]);
+                const n:Vector3 = (e0.op_remainder(e1)).normalize();
 
                 this.triangles[i].normals[0] = n;
                 this.triangles[i].normals[1] = n;
@@ -237,10 +239,10 @@ export class Mesh {
 
             // material id
             this.triangles[i].idMaterial = 0;
-            if (matid != null)
+            if (geometry.materialIds != null)
             {
                 // read texture coordinates
-                if ((texcoords != null) && mtls[matid[i]].isTextured)
+                if ((texcoords != null) && mtls[geometry.materialIds[i]].isTextured)
                 {
                     this.triangles[i].texcoords[0] = new Vector2(texcoords[v0 * 2], texcoords[v0 * 2 + 1]);
                     this.triangles[i].texcoords[1] = new Vector2(texcoords[v1 * 2], texcoords[v1 * 2 + 1]);
@@ -253,7 +255,7 @@ export class Mesh {
                     this.triangles[i].texcoords[2] = new Vector2(1.0e+30, 1.0e+30);
                 }
 
-                this.triangles[i].idMaterial = matid[i];
+                this.triangles[i].idMaterial = geometry.materialIds[i];
             }
             else
             {
@@ -263,13 +265,7 @@ export class Mesh {
             }
         }
 
-        this.CalculateBBox();
-        if (haveLightSource) this.PrepareLightSources();
-
-        delete[] vertices;
-        delete[] normals;
-        delete[] texcoords;
-        delete[] indices;
-        delete[] matid;
+        this.calculateBBox();
+        if (haveLightSource) this.prepareLightSources();
     }
 }

@@ -11,7 +11,7 @@ export class Vector4 {
 }
 
 export class Vector3 {
-    constructor(public x: number = 0.0, public y: number = 0.0, public z: number = 0.0, public w: number = 0.0) {
+    constructor(public x: number = 0.0, public y: number = 0.0, public z: number = 0.0) {
 
     }
 

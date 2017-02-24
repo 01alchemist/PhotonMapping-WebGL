@@ -1,4 +1,6 @@
-class BBox {
+import {Vector3} from "./vector";
+
+export class BBox {
 
     constructor(public min: Vector3 = new Vector3(), public max: Vector3 = new Vector3()){
 

@@ -1,4 +1,7 @@
-class BVHNode {
+import {Mesh} from "./mesh";
+import {BBox} from "./bbox";
+
+export class BVHNode {
     constructor(public bbox: BBox, public isLeaf: boolean,
                 idLeft: number, idRight: number, idTriangle: number,
                 idMiss: number, idBase: number) {
@@ -7,9 +10,8 @@ class BVHNode {
 }
 
 
-class BVH {
-    constructor(// nodes
-                public nodes: BVHNode[], public nodesNum: number) {
+export class BVH {
+    constructor(public nodes: BVHNode[], public nodesNum: number) {
 
     }
 
@@ -19,7 +21,7 @@ class BVH {
         // build six BVHs for all the canonical directions
         for (let face = 0; face <= 5; face++) {
             // initialize nodes
-            const obj_num = mesh.triangles.size();
+            const obj_num = mesh.triangles.length;
             let obj_index: Int32Array = new Int32Array(obj_num);
             for (let i = 0; i <= obj_num - 1; i++) {
                 obj_index[i] = i;
@@ -67,14 +69,14 @@ class BVH {
                 tnodeNum = 0;
                 reorderNodes(mesh, face, 0, this.nodes);
                 tnodeNum = 0;
-                ReorderTree(mesh, face, 0, this.nodes);
+                reorderTree(mesh, face, 0, this.nodes);
             }
 
             // threading BVH (making miss links)
             this.nodes[face][0].idMiss = -1;
-            SetLeftMissLinks(0, 0, face, this.nodes);
+            setLeftMissLinks(0, 0, face, this.nodes);
             this.nodes[face][0].idMiss = -1;
-            SetRightMissLinks(0, 0, face, this.nodes);
+            setRightMissLinks(0, 0, face, this.nodes);
             this.nodes[face][0].idMiss = -1;
         }
     }
@@ -84,7 +86,7 @@ class BVH {
 export var tnodeNum: number = 0;
 
 
-function sortAxis(mesh: Mesh, obj_index: number, axis: number, li: number, ri: number) {
+function sortAxis(mesh: Mesh, obj_index: Int32Array, axis: number, li: number, ri: number) {
     let i: number = li;
     let j: number = ri;
 
@@ -141,8 +143,8 @@ function splitBVH(mesh: Mesh, obj_index: Int32Array, obj_num: number, bbox: BBox
     // obvious case
     if (obj_num == 2) {
         // divide the node into two nodes
-        obj_index_L = new int[1];
-        obj_index_R = new int[1];
+        obj_index_L = new Int32Array(1);
+        obj_index_R = new Int32Array(1);
 
         obj_index_L[0] = obj_index[0];
         obj_index_R[0] = obj_index[1];
@@ -212,7 +214,7 @@ function splitBVH(mesh: Mesh, obj_index: Int32Array, obj_num: number, bbox: BBox
         }
 
         sorted_obj_index = null;
-        delete sorted_obj_index;
+        // delete sorted_obj_index;
     }
 
     // it is not a leaf node
@@ -233,15 +235,13 @@ function splitBVH(mesh: Mesh, obj_index: Int32Array, obj_num: number, bbox: BBox
 
     obj_index_L = null;
     obj_index_R = null;
-    delete obj_index_L;
-    delete obj_index_R;
 
     return temp_id;
 }
 
 function reorderNodes(mesh: Mesh, face: number, index: number, mnode: BVHNode[]) {
     if (index < 0) return;
-    if (tnodeNum == (mesh.triangles.size() * 2)) return;
+    if (tnodeNum == (mesh.triangles.length * 2)) return;
 
     tnodeNum++;
     let temp_id = tnodeNum - 1;
@@ -255,7 +255,7 @@ function reorderNodes(mesh: Mesh, face: number, index: number, mnode: BVHNode[])
 }
 
 
-function ReorderTree(mesh: Mesh, face: number, index: number, mnode: BVHNode[]): number {
+function reorderTree(mesh: Mesh, face: number, index: number, mnode: BVHNode[]): number {
     if (mnode[6][index].isLeaf) {
         tnodeNum++;
         return tnodeNum - 1;
@@ -263,13 +263,13 @@ function ReorderTree(mesh: Mesh, face: number, index: number, mnode: BVHNode[]):
 
     tnodeNum++;
     let temp_id = tnodeNum - 1;
-    mnode[face][temp_id].idLeft = ReorderTree(mesh, face, mnode[6][index].idLeft, mnode);
-    mnode[face][temp_id].idRight = ReorderTree(mesh, face, mnode[6][index].idRight, mnode);
+    mnode[face][temp_id].idLeft = reorderTree(mesh, face, mnode[6][index].idLeft, mnode);
+    mnode[face][temp_id].idRight = reorderTree(mesh, face, mnode[6][index].idRight, mnode);
     return temp_id;
 }
 
 
-function SetLeftMissLinks(id: number, idParent: number, face: number, mnode: BVHNode[]): void {
+function setLeftMissLinks(id: number, idParent: number, face: number, mnode: BVHNode[]): void {
     if (mnode[face][id].isLeaf) {
         mnode[face][id].idMiss = id + 1;
         return;
@@ -277,12 +277,12 @@ function SetLeftMissLinks(id: number, idParent: number, face: number, mnode: BVH
 
     mnode[face][id].idMiss = mnode[face][idParent].idRight;
 
-    SetLeftMissLinks(mnode[face][id].idLeft, id, face, mnode);
-    SetLeftMissLinks(mnode[face][id].idRight, id, face, mnode);
+    setLeftMissLinks(mnode[face][id].idLeft, id, face, mnode);
+    setLeftMissLinks(mnode[face][id].idRight, id, face, mnode);
 }
 
 
-function SetRightMissLinks(id: number, idParent: number, face: number, mnode: BVHNode[]): void {
+function setRightMissLinks(id: number, idParent: number, face: number, mnode: BVHNode[]): void {
     if (mnode[face][id].isLeaf) {
         mnode[face][id].idMiss = id + 1;
         return;
@@ -292,6 +292,6 @@ function SetRightMissLinks(id: number, idParent: number, face: number, mnode: BV
         mnode[face][id].idMiss = mnode[face][idParent].idMiss;
     }
 
-    SetRightMissLinks(mnode[face][id].idLeft, id, face, mnode);
-    SetRightMissLinks(mnode[face][id].idRight, id, face, mnode);
+    setRightMissLinks(mnode[face][id].idLeft, id, face, mnode);
+    setRightMissLinks(mnode[face][id].idRight, id, face, mnode);
 }

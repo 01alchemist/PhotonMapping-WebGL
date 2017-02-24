@@ -26,8 +26,8 @@ let startedTime: number = 0;
 
 const maxNumberOfBounces: number = 10;
 const imageResolution: number = 512;
-const photonBufferSize: number = this.imageResolution;
-const hashResolution: number = this.imageResolution;
+const photonBufferSize: number = imageResolution;
+const hashResolution: number = imageResolution;
 const InitialFootprint: number = 2.5;
 
 let queryPositionTexture: GLuint;
@@ -702,7 +702,7 @@ export class PhotonMapper {
         gl.bindFramebuffer(gl.FRAMEBUFFER, photonHashSurface);
         photonHashDepthBuffer = gl.createRenderbuffer();
         gl.bindRenderbuffer(gl.RENDERBUFFER, photonHashDepthBuffer);
-        gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT, hashResolution, hashResolution);
+        gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT16, hashResolution, hashResolution);
         gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, photonHashTexture, 0);
         gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, photonHashDepthBuffer);
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
@@ -710,7 +710,7 @@ export class PhotonMapper {
         // hash-count buffer
         photonCorrectionSurface = gl.createFramebuffer();
         gl.bindFramebuffer(gl.FRAMEBUFFER, photonCorrectionSurface);
-        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, photonCorrectionSurface, null);
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, photonCorrectionTexture, 0);
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
         // eye ray intersection data
@@ -745,7 +745,7 @@ export class PhotonMapper {
         gl.bindFramebuffer(gl.FRAMEBUFFER, queryPointSurface);
         gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, queryFluxRadiusTexture, 0);
         gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT1, gl.TEXTURE_2D, queryEmissionPhotonCountTexture, 0);
-        gl.drawBuffers(2, queryBuffers);
+        gl.drawBuffers(queryBuffers);
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
         // create a VBO
@@ -771,7 +771,7 @@ export class PhotonMapper {
         gpurt.camera.set(CanonicalCameraPosition, LookAtPosition, imageResolution, imageResolution, FieldOfView);
 
         // load mesh data
-        gpurt.mesh.loadOBJ(fs.getTextFile("cornell_metal.obj"), new Vector3(0.0, 0.0, 0.0), 0.01);
+        gpurt.mesh.loadOBJ(fs.getTextFile("models/cornell_metal.obj"), new Vector3(0.0, 0.0, 0.0), 0.01);
 
         // precalcuation (BVH construction) for mesh
         console.log("building BVH...");

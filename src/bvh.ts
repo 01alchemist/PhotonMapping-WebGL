@@ -1,17 +1,19 @@
 import {Mesh} from "./mesh";
 import {BBox} from "./bbox";
+import {fillArray} from "./utils";
 
 export class BVHNode {
-    constructor(public bbox: BBox, public isLeaf: boolean,
-                idLeft: number, idRight: number, idTriangle: number,
-                idMiss: number, idBase: number) {
+    constructor(public bbox: BBox=new BBox(), public isLeaf: boolean,
+                public idLeft: number, public idRight: number,
+                public idTriangle: number,
+                public idMiss: number, public idBase: number) {
 
     }
 }
 
 
 export class BVH {
-    constructor(public nodes: BVHNode[], public nodesNum: number) {
+    constructor(public nodes: Array<BVHNode[]>=[], public nodesNum: number=0) {
 
     }
 
@@ -27,7 +29,9 @@ export class BVH {
                 obj_index[i] = i;
             }
             tnodeNum = 0;
-            this.nodes[face] = new BVHNode[obj_num * 2];
+            this.nodes[face] = [];//new BVHNode[obj_num * 2];
+            fillArray(this.nodes[face], BVHNode, obj_num * 2);
+
             for (let i = 0; i <= obj_num * 2 - 1; i++) {
                 this.nodes[face][i].idMiss = -1;
                 this.nodes[face][i].idBase = i;
@@ -39,7 +43,9 @@ export class BVH {
                 this.nodesNum = tnodeNum;
 
                 // initialize temporary BVH nodes
-                this.nodes[6] = new BVHNode[obj_num * 2];
+                this.nodes[6] = [];//new BVHNode[obj_num * 2];
+                fillArray(this.nodes[face], BVHNode, obj_num * 2);
+
                 for (let i = 0; i <= obj_num * 2 - 1; i++) {
                     this.nodes[6][i].idMiss = -1;
                 }
@@ -90,11 +96,11 @@ function sortAxis(mesh: Mesh, obj_index: Int32Array, axis: number, li: number, r
     let i: number = li;
     let j: number = ri;
 
-    const pivot: number = mesh.triangles[obj_index[(li + ri) / 2]].centroid[axis];
+    const pivot: number = mesh.triangles[obj_index[Math.floor((li + ri) / 2)]].centroid[axis];
 
     for (; ;) {
-        while (mesh.triangles[obj_index[i]].centroid[axis] < pivot) i++;
-        while (mesh.triangles[obj_index[j]].centroid[axis] > pivot) j--;
+        while (mesh.triangles[obj_index[i]].centroid.get(axis) < pivot) i++;
+        while (mesh.triangles[obj_index[j]].centroid.get(axis) > pivot) j--;
         if (i >= j) break;
 
         let temp: number = obj_index[i];
@@ -239,7 +245,7 @@ function splitBVH(mesh: Mesh, obj_index: Int32Array, obj_num: number, bbox: BBox
     return temp_id;
 }
 
-function reorderNodes(mesh: Mesh, face: number, index: number, mnode: BVHNode[]) {
+function reorderNodes(mesh: Mesh, face: number, index: number, mnode: Array<BVHNode[]>) {
     if (index < 0) return;
     if (tnodeNum == (mesh.triangles.length * 2)) return;
 

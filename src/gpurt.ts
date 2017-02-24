@@ -41,6 +41,9 @@ export class CGPURT {
 
     constructor() {
 
+        this.camera = new Camera();
+        this.mesh = new Mesh();
+        this.bvh = new BVH();
         this.textureTriangles = null;
         this.textureBVHs = null;
 

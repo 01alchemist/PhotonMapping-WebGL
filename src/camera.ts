@@ -2,10 +2,10 @@ import {Vector3} from "./vector";
 
 export class Camera {
 
-    constructor(public origin: Vector3, public lookat: Vector3,
-                public width: number, public height: number,
-                public distance: number,
-                public u: Vector3, public v: Vector3, public w: Vector3) {
+    constructor(public origin: Vector3 = new Vector3(), public lookat: Vector3 = new Vector3(),
+                public width?: number, public height?: number,
+                public distance?: number,
+                public u?: Vector3, public v?: Vector3, public w?: Vector3) {
 
     }
 

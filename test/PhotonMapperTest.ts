@@ -26,6 +26,8 @@ export class PhotonMapperTest {
     load(callback) {
 
         let filesToLoad = [
+            {src: "models/cornell_metal.obj", name:"models/cornell_metal.obj", type: "text"},
+            {src: "models/cornell_metal.mtl", name:"models/cornell_metal.mtl", type: "text"},
             {src: "models/stanford-dragon/stanford-dragon.obj", name:"models/stanford-dragon.obj", type: "text"},
             {src: "models/stanford-dragon/stanford-dragon.mtl", name:"models/stanford-dragon.mtl", type: "text"},
             {src: "../src/shaders/correction.fs", name:"correction.fs", type: "text"},

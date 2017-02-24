@@ -2,17 +2,30 @@ export class Vector2 {
     constructor(public x: number = 0.0, public y: number = 0.0) {
 
     }
+
+    get glData(): Float32Array {
+        return new Float32Array([this.x, this.y]);
+    }
+
 }
 
 export class Vector4 {
-    constructor(public x: number = 0.0, public y: number = 0.0, public z: number = 0.0) {
+    constructor(public x: number = 0.0, public y: number = 0.0, public z: number = 0.0, public w: number = 0.0) {
 
+    }
+
+    get glData(): Float32Array {
+        return new Float32Array([this.x, this.y, this.z, this.w]);
     }
 }
 
 export class Vector3 {
     constructor(public x: number = 0.0, public y: number = 0.0, public z: number = 0.0) {
 
+    }
+
+    get glData(): Float32Array {
+        return new Float32Array([this.x, this.y, this.z]);
     }
 
     add(b: Vector3): Vector3 {

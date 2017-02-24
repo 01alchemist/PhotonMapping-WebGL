@@ -3,8 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <title>Test</title>
+    <!--<script src="../libs/require.js"></script>-->
     <script src="../node_modules/systemjs/dist/system.src.js"></script>
     <script>
+        exports = window.exports || {};
         System.config({
             baseURL: "../",
             packages: {
@@ -19,25 +21,16 @@
             }
         });
     </script>
-    <script>
-
-        System.import('test/TestObjLoader').then(function (module) {
-                    window.app = new module.TestObjLoader();
-                }, console.error.bind(console));
-
-//        System.import('../bin/xray.js').then(function (m) {
-        //
-        //            System.import("xray").then(function (module) {
-        //                console.log(module.parseOBJ);
-        //
-        //
-        //            })
-        //
-        //        }, console.error.bind(console));
-
-    </script>
 </head>
 <body>
+<canvas id="xray" width="600" height="600"></canvas>
+    <script>
+        let canvas = document.getElementById("xray");
+        window.gl = canvas.getContext("webgl2");
 
+        System.import('test/PhotonMapperTest').then(function (module) {
+            window.app = new module.PhotonMapperTest();
+        }, console.error.bind(console));
+    </script>
 </body>
 </html>

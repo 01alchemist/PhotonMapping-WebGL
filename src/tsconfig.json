@@ -4,9 +4,5 @@
     "moduleResolution": "node",
     "target": "es6",
     "sourceMap": true
-  },
-  "files": [
-    "decleration.d.ts",
-    "xray.ts"
-  ]
+  }
 }

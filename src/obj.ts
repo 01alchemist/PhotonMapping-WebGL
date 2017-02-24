@@ -4,34 +4,34 @@ import {Vector3} from "./vector";
  * Created by nidin on 2017-02-18.
  */
 /*export function get_indices(word: string) {
-    let limit = word.length;
-    let i = 0;
-    let ip = 0;
-    let tp = null;
-    let np = null;
+ let limit = word.length;
+ let i = 0;
+ let ip = 0;
+ let tp = null;
+ let np = null;
 
-    while (i < limit) {
-        let c = word[i];
-        if (c == '/') {
-            if (tp == null) {
-                tp = i + 1;
-            }
-            else {
-                np = i + 1;
-            }
+ while (i < limit) {
+ let c = word[i];
+ if (c == '/') {
+ if (tp == null) {
+ tp = i + 1;
+ }
+ else {
+ np = i + 1;
+ }
 
-            break;
-        }
+ break;
+ }
 
-        i++;
-    }
+ i++;
+ }
 
-    return {
-        vI: parseInt(word.substring(ip, tp - 1)),
-        tI: parseInt(word.substring(tp, np - 1)),
-        nI: parseInt(word.substring(np, limit - 1))
-    }
-}*/
+ return {
+ vI: parseInt(word.substring(ip, tp - 1)),
+ tI: parseInt(word.substring(tp, np - 1)),
+ nI: parseInt(word.substring(np, limit - 1))
+ }
+ }*/
 export function get_indices(word: string) {
 
     let ix = word.split("/");
@@ -50,7 +50,7 @@ export async function loadPPM(fileName: string, i: number) {
 }
 
 
-export function loadMTL(contents: string, base) {
+export function loadMTL(contents: string, base="") {
 
     let mtl: Material = new Material();
     let limit = contents.length;
@@ -98,7 +98,7 @@ export function loadMTL(contents: string, base) {
 }
 
 
-export function parseOBJ(contents: string, base, callback) {
+export function parseOBJ(contents: string, base="", callback?) {
 
     let nVertices: number;
     let vertices: Float32Array;
@@ -218,7 +218,7 @@ export function parseOBJ(contents: string, base, callback) {
         }
         else if (line[0] == 'f') {
             // let s1[32], s2[32], s3[32];
-            let s = line.substring(2,line.length).split(" ");
+            let s = line.substring(2, line.length).split(" ");
             let vI, tI, nI;
 
             mInd[ntriangles] = cmaterial;
@@ -373,13 +373,17 @@ export function parseOBJ(contents: string, base, callback) {
 
     }
 
-    callback({
+    let result = {
         vertices: vertices,
         normals: normals,
         texcoords: texcoords,
         indices: indices,
         materialIds: materialIds
-    });
+    };
+    if (callback) {
+        callback(result);
+    }
+    return result;
 }
 
 function readLine(str, start = 0, length?): {line: string, end: number} {

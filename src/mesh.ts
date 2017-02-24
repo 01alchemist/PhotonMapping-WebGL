@@ -268,4 +268,9 @@ export class Mesh {
         this.calculateBBox();
         if (haveLightSource) this.prepareLightSources();
     }
+
+    loadOBJ(content: string, position: Vector3, scale: number) {
+        let obj = parseOBJ(content);
+        this.load(obj, position, scale);
+    }
 }

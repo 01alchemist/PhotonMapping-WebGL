@@ -1,6 +1,7 @@
 import {Vector3, Vector2} from "./vector";
 import {BBox} from "./bbox";
 import {mtls, parseOBJ} from "./obj";
+import {fs} from "./fs";
 /**
  * Created by nidin on 2017-02-18.
  */
@@ -269,8 +270,8 @@ export class Mesh {
         if (haveLightSource) this.prepareLightSources();
     }
 
-    loadOBJ(content: string, position: Vector3, scale: number) {
-        let obj = parseOBJ(content);
+    loadOBJ(url: string, position: Vector3, scale: number) {
+        let obj = parseOBJ(fs.getTextFile(url));
         this.load(obj, position, scale);
     }
 }

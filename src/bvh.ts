@@ -2,6 +2,8 @@ import {Mesh} from "./mesh";
 import {BBox} from "./bbox";
 import {fillArray} from "./utils";
 
+let tnodeNum: number = 0;
+
 export class BVHNode {
     constructor(public bbox: BBox=new BBox(), public isLeaf: boolean,
                 public idLeft: number, public idRight: number,
@@ -11,7 +13,6 @@ export class BVHNode {
     }
 }
 
-
 export class BVH {
     constructor(public nodes: Array<BVHNode[]>=[], public nodesNum: number=0) {
 
@@ -19,6 +20,7 @@ export class BVH {
 
     build(mesh: Mesh) {
         this.nodes = [];
+        fillArray(this.nodes, Array, 7);
 
         // build six BVHs for all the canonical directions
         for (let face = 0; face <= 5; face++) {
@@ -44,7 +46,7 @@ export class BVH {
 
                 // initialize temporary BVH nodes
                 this.nodes[6] = [];//new BVHNode[obj_num * 2];
-                fillArray(this.nodes[face], BVHNode, obj_num * 2);
+                fillArray(this.nodes[6], BVHNode, obj_num * 2);
 
                 for (let i = 0; i <= obj_num * 2 - 1; i++) {
                     this.nodes[6][i].idMiss = -1;
@@ -88,10 +90,6 @@ export class BVH {
     }
 }
 
-
-export var tnodeNum: number = 0;
-
-
 function sortAxis(mesh: Mesh, obj_index: Int32Array, axis: number, li: number, ri: number) {
     let i: number = li;
     let j: number = ri;
@@ -116,7 +114,7 @@ function sortAxis(mesh: Mesh, obj_index: Int32Array, axis: number, li: number, r
 }
 
 
-function splitBVH(mesh: Mesh, obj_index: Int32Array, obj_num: number, bbox: BBox, Level: number, face: number, mnode: BVHNode[]) {
+function splitBVH(mesh: Mesh, obj_index: Int32Array, obj_num: number, bbox: BBox, Level: number, face: number, mnode: Array<BVHNode[]>) {
     let obj_index_L: Int32Array;
     let obj_index_R: Int32Array;
 
@@ -163,9 +161,10 @@ function splitBVH(mesh: Mesh, obj_index: Int32Array, obj_num: number, bbox: BBox
         let sorted_obj_index: Int32Array = new Int32Array(obj_num);
         let leftarea: Float32Array = new Float32Array(obj_num);
         let lbbox: BBox[] = [];//obj_num
+        fillArray(lbbox, BBox, obj_num);
 
         // for all axes
-        for (var k = 0; k <= 2; k++) {
+        for (let k = 0; k <= 2; k++) {
             sortAxis(mesh, obj_index, k, 0, obj_num - 1);
 
             // calculate area of bounding boxes for left sweeping
@@ -251,6 +250,7 @@ function reorderNodes(mesh: Mesh, face: number, index: number, mnode: Array<BVHN
 
     tnodeNum++;
     let temp_id = tnodeNum - 1;
+
     mnode[face][temp_id] = mnode[6][index];
     mnode[face][temp_id].idBase = index;
 
@@ -261,7 +261,7 @@ function reorderNodes(mesh: Mesh, face: number, index: number, mnode: Array<BVHN
 }
 
 
-function reorderTree(mesh: Mesh, face: number, index: number, mnode: BVHNode[]): number {
+function reorderTree(mesh: Mesh, face: number, index: number, mnode: Array<BVHNode[]>): number {
     if (mnode[6][index].isLeaf) {
         tnodeNum++;
         return tnodeNum - 1;
@@ -269,13 +269,15 @@ function reorderTree(mesh: Mesh, face: number, index: number, mnode: BVHNode[]):
 
     tnodeNum++;
     let temp_id = tnodeNum - 1;
-    mnode[face][temp_id].idLeft = reorderTree(mesh, face, mnode[6][index].idLeft, mnode);
-    mnode[face][temp_id].idRight = reorderTree(mesh, face, mnode[6][index].idRight, mnode);
+    if(mnode[face].length < temp_id) {
+        mnode[face][temp_id].idLeft = reorderTree(mesh, face, mnode[6][index].idLeft, mnode);
+        mnode[face][temp_id].idRight = reorderTree(mesh, face, mnode[6][index].idRight, mnode);
+    }
     return temp_id;
 }
 
 
-function setLeftMissLinks(id: number, idParent: number, face: number, mnode: BVHNode[]): void {
+function setLeftMissLinks(id: number, idParent: number, face: number, mnode: Array<BVHNode[]>): void {
     if (mnode[face][id].isLeaf) {
         mnode[face][id].idMiss = id + 1;
         return;
@@ -288,7 +290,7 @@ function setLeftMissLinks(id: number, idParent: number, face: number, mnode: BVH
 }
 
 
-function setRightMissLinks(id: number, idParent: number, face: number, mnode: BVHNode[]): void {
+function setRightMissLinks(id: number, idParent: number, face: number, mnode: Array<BVHNode[]>): void {
     if (mnode[face][id].isLeaf) {
         mnode[face][id].idMiss = id + 1;
         return;

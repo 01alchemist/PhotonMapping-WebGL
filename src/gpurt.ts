@@ -44,6 +44,7 @@ export class CGPURT {
         this.camera = new Camera();
         this.mesh = new Mesh();
         this.bvh = new BVH();
+        this.polygonDataStride = new Vector2();
         this.textureTriangles = null;
         this.textureBVHs = null;
 
@@ -73,7 +74,7 @@ export class CGPURT {
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-        gl.texImage2D(gl.TEXTURE_2D, 0, format, width, height, 0, gl.LUMINANCE, gl.FLOAT, null);
+        gl.texImage2D(gl.TEXTURE_2D, 0, format, width, height, 0, gl.RGBA, gl.FLOAT, null);
 
         return texture;
     }
@@ -125,7 +126,7 @@ export class CGPURT {
 
         }
 
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, polyDataSizeX, polyDataSizeY, 0, gl.RGBA32F, gl.FLOAT, vec4array_to_f32Array(polyTexSys));
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, polyDataSizeX, polyDataSizeY, 0, gl.RGBA, gl.FLOAT, vec4array_to_f32Array(polyTexSys));
 
         // --------------- material data ---------------
         if (this.mesh.materials.length == 0) {
@@ -158,7 +159,7 @@ export class CGPURT {
             materialTexSys[k].w = 0.0;
             k++;
         }
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, this.mesh.materials.length * materialDataNumVec4s, 1, 0, gl.RGBA32F, gl.FLOAT, vec4array_to_f32Array(materialTexSys));
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, this.mesh.materials.length * materialDataNumVec4s, 1, 0, gl.RGBA, gl.FLOAT, vec4array_to_f32Array(materialTexSys));
 
         // --------------- light source data ---------------
         if (this.mesh.lightsCDF.length > 0) {
@@ -174,10 +175,10 @@ export class CGPURT {
                 lightSourcesTexSys[k].w = 0.0;
                 k++;
             }
-            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, this.mesh.lightsCDF.length, 1, 0, gl.RGBA32F, gl.FLOAT, vec4array_to_f32Array(lightSourcesTexSys));
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, this.mesh.lightsCDF.length, 1, 0, gl.RGBA, gl.FLOAT, vec4array_to_f32Array(lightSourcesTexSys));
         }
 
-        gl.enable(gl.TEXTURE_3D);
+        // gl.enable(gl.TEXTURE_3D);
         gl.activeTexture(gl.TEXTURE0);
         this.volumeTextureTextures = gl.createTexture();
         gl.bindTexture(gl.TEXTURE_3D, this.volumeTextureTextures);
@@ -230,7 +231,7 @@ export class CGPURT {
         this.bboxDataSizeY = this.bboxDataSizeX;
 
         // root selector
-        gl.enable(gl.TEXTURE_CUBE_MAP);
+        // gl.enable(gl.TEXTURE_CUBE_MAP);
         gl.activeTexture(gl.TEXTURE0);
         this.cubeTextureBBoxRootIndices = gl.createTexture();
         gl.bindTexture(gl.TEXTURE_CUBE_MAP, this.cubeTextureBBoxRootIndices);
@@ -276,7 +277,7 @@ export class CGPURT {
                 vData.w = (-1.0);
             }
 
-            gl.texImage2D(gl.TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, gl.RGBA32F, 1, 1, 0, gl.RGBA32F, gl.FLOAT, vData.glData);
+            gl.texImage2D(gl.TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, gl.RGBA32F, 1, 1, 0, gl.RGBA, gl.FLOAT, vData.glData);
         }
 
 
@@ -465,7 +466,7 @@ export class CGPURT {
                 bbhitmiss++;
                 k++;
             }
-            bbhitmiss = bbhitmiss + this.bboxDataSizeX * 1;
+            bbhitmiss = bbhitmiss + this.bboxDataSizeX;
         }
 
 
@@ -490,10 +491,10 @@ export class CGPURT {
                 bbhitmiss++;
                 k++;
             }
-            bbhitmiss = bbhitmiss + this.bboxDataSizeX * 1;
+            bbhitmiss = bbhitmiss + this.bboxDataSizeX;
         }
 
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, this.bboxDataSizeX * 2, this.bboxDataSizeY * 4, 0, gl.RGBA32F, gl.FLOAT, vec4array_to_f32Array(textureBVHSys));
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, this.bboxDataSizeX * 2, this.bboxDataSizeY * 4, 0, gl.RGBA, gl.FLOAT, vec4array_to_f32Array(textureBVHSys));
     }
 
 

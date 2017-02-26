@@ -1,40 +1,53 @@
-#version 120
+#version 300 es
 
+precision mediump float;
+precision mediump sampler3D;
 
-uniform sampler2D RandomTexture;
+const int MAX_LOOP = 1023;
 
-uniform int MaxPathLength;
+in vec2 v_texcoord_0;
 
-uniform sampler2D TextureLightSources;
-uniform float LightSourceStride;
-uniform float LightSummedArea;
-uniform sampler3D VolumeTextureTextures;
+uniform sampler2D randomTexture;
 
-uniform sampler2D RayDirectionTexture;
-uniform sampler2D RayOriginTexture;
-uniform sampler2D TexturePolygons;
-uniform vec2 PolygonDataStride;
+uniform int maxPathLength;
 
-uniform sampler2D TextureBVH;
-uniform samplerCube CubeTextureBBoxRootIndices;
+uniform sampler2D textureLightSources;
+uniform float lightSourceStride;
+uniform float lightSummedArea;
+uniform sampler3D volumeTextureTextures;
 
-uniform sampler2D TextureMaterials;
+uniform sampler2D rayDirectionTexture;
+uniform sampler2D rayOriginTexture;
+uniform sampler2D texturePolygons;
+uniform vec2 polygonDataStride;
 
-uniform sampler2D PhotonIntersectionTexture;
-uniform sampler2D PhotonPositionTexture;
-uniform sampler2D PhotonFluxTexture;
-uniform sampler2D PhotonDirectionTexture;
+uniform sampler2D textureBVH;
+uniform samplerCube cubeTextureBBoxRootIndices;
 
-uniform vec4 SceneBSphere;
+uniform sampler2D textureMaterials;
 
-uniform float MaterialStride;
-uniform float MaterialNumRcp;
+uniform sampler2D photonIntersectionTexture;
+uniform sampler2D photonPositionTexture;
+uniform sampler2D photonFluxTexture;
+uniform sampler2D photonDirectionTexture;
 
-uniform vec4 OffsetToBBoxMinMax;
+uniform vec4 sceneBSphere;
+
+uniform float materialStride;
+uniform float materialNumRcp;
+
+uniform vec4 offsetToBBoxMinMax;
 
 
 const float eps = 1e-6;
 
+//out vec4 [6] fragData;
+layout(location = 0) out vec4 fragData0;
+layout(location = 1) out vec4 fragData1;
+layout(location = 2) out vec4 fragData2;
+layout(location = 3) out vec4 fragData3;
+layout(location = 4) out vec4 fragData4;
+layout(location = 5) out vec4 fragData5;
 
 struct Ray
 {
@@ -96,48 +109,51 @@ float GPURnd(inout vec4 n)
 }
 
 
-void next(inout vec2 TriangleIndex, const float offset)
+void next(inout vec2 triangleIndex, const float offset)
 {
-	TriangleIndex.y = TriangleIndex.y + PolygonDataStride.y * floor(TriangleIndex.x + PolygonDataStride.x * offset);
-	TriangleIndex.x = fract(TriangleIndex.x + PolygonDataStride.x * offset);
+	triangleIndex.y = triangleIndex.y + polygonDataStride.y * floor(triangleIndex.x + polygonDataStride.x * offset);
+	triangleIndex.x = fract(triangleIndex.x + polygonDataStride.x * offset);
 }
 
 
-vec4 LastIntersection;
+vec4 lastIntersection;
 Intersection raytrace(const Ray ray)
 {
-	Intersection Result;
+	Intersection result;
 
-	Result.t = 1.0e+30;
-	Result.nrm = vec3(0.0);
-	Result.pos = vec3(0.0);
-	Result.col = vec3(0.0);
+	result.t = 1.0e+30;
+	result.nrm = vec3(0.0);
+	result.pos = vec3(0.0);
+	result.col = vec3(0.0);
 
-	vec3 RayDirection = ray.dir;
+	vec3 rayDirection = ray.dir;
 	vec3 RayOrigin = ray.org;
 
 	vec4 isect = vec4(-1.0, -1.0, -1.0, 1.0e30);
-	vec3 Barycentric;
+	vec3 barycentric;
 
 	// RootIndex is the offset to the root
-	vec4 RootIndex = textureCube(CubeTextureBBoxRootIndices, RayDirection);
-	vec4 BBoxIndex = RootIndex;
+	vec4 RootIndex = texture(cubeTextureBBoxRootIndices, rayDirection);
+	vec4 bboxIndex = RootIndex;
 
-	vec3 RayDirectionRcp = vec3(1.0) / RayDirection;
-	vec3 t0 = -RayDirectionRcp * RayOrigin;
+	vec3 rayDirectionRcp = vec3(1.0) / rayDirection;
+	vec3 t0 = -rayDirectionRcp * RayOrigin;
 
-	while (true)
+	int count = 0;
+
+	while (count < 7)
 	{
-		vec4 BBoxMinMaxIndex = OffsetToBBoxMinMax + (BBoxIndex.xyxy - RootIndex.xyxy);
-		vec4 BBoxMinTriangleX = texture2D(TextureBVH, BBoxMinMaxIndex.xy);
-		vec4 BBoxMaxTriangleY = texture2D(TextureBVH, BBoxMinMaxIndex.zw);
+	    count++;
+		vec4 bboxMinMaxIndex = offsetToBBoxMinMax + (bboxIndex.xyxy - RootIndex.xyxy);
+		vec4 bboxMinTriangleX = texture(textureBVH, bboxMinMaxIndex.xy);
+		vec4 bboxMaxTriangleY = texture(textureBVH, bboxMinMaxIndex.zw);
 
-		vec4 BBoxNextIndex = texture2D(TextureBVH, BBoxIndex.xy);
+		vec4 bboxNextIndex = texture(textureBVH, bboxIndex.xy);
 
-		vec3 BBMinInterval = RayDirectionRcp * BBoxMinTriangleX.xyz + t0;
-		vec3 BBMaxInterval = RayDirectionRcp * BBoxMaxTriangleY.xyz + t0;
-		vec3 a = min(BBMinInterval, BBMaxInterval);
-		vec3 b = max(BBMinInterval, BBMaxInterval);
+		vec3 bbMinInterval = rayDirectionRcp * bboxMinTriangleX.xyz + t0;
+		vec3 bbMaxInterval = rayDirectionRcp * bboxMaxTriangleY.xyz + t0;
+		vec3 a = min(bbMinInterval, bbMaxInterval);
+		vec3 b = max(bbMinInterval, bbMaxInterval);
 		float tmin = max(max(a.x, a.y), a.z);
 		float tmax = min(min(b.x, b.y), b.z);
 
@@ -145,26 +161,26 @@ Intersection raytrace(const Ray ray)
 
 		// texture fetches outside seems to be better...
 		// read triangle vertices
-		vec2 TriangleStartIndex = vec2(BBoxMinTriangleX.w, BBoxMaxTriangleY.w);
-		vec2 TriangleIndex = TriangleStartIndex;
+		vec2 triangleStartIndex = vec2(bboxMinTriangleX.w, bboxMaxTriangleY.w);
+		vec2 triangleIndex = triangleStartIndex;
 
 		// (px, py, pz, tx)
 		// (nx, ny, sgn(nz) * (matid + 1), ty)
-		vec3 V0 = texture2D(TexturePolygons, TriangleIndex).xyz; next(TriangleIndex, 1.0); 
-		vec3 V1 = texture2D(TexturePolygons, TriangleIndex).xyz; next(TriangleIndex, 1.0); 
-		vec3 V2 = texture2D(TexturePolygons, TriangleIndex).xyz; next(TriangleIndex, 1.0); 
-		float MaterialIndex = abs(texture2D(TexturePolygons, TriangleIndex).z) - 1.0;
-		//int BRDF = BRDFs[int(MaterialIndex)];
-		int BRDF =  int(texture2D(TextureMaterials, vec2((MaterialIndex + 0.5 + 0.25) * MaterialStride, 0.0)).x);
+		vec3 V0 = texture(texturePolygons, triangleIndex).xyz; next(triangleIndex, 1.0);
+		vec3 V1 = texture(texturePolygons, triangleIndex).xyz; next(triangleIndex, 1.0);
+		vec3 V2 = texture(texturePolygons, triangleIndex).xyz; next(triangleIndex, 1.0);
+		float materialIndex = abs(texture(texturePolygons, triangleIndex).z) - 1.0;
+		//int BRDF = BRDFs[int(materialIndex)];
+		int BRDF =  int(texture(textureMaterials, vec2((materialIndex + 0.5 + 0.25) * materialStride, 0.0)).x);
 
 		// perform ray-triangle intersection if it is a leaf node
-		if ((BBoxMinTriangleX.w >= 0.0) && BBHit)
+		if ((bboxMinTriangleX.w >= 0.0) && BBHit)
 		{
 			// ray triangle intersection
 			vec3 p0 = V0;
 			vec3 e0 = V1 - V0;
 			vec3 e1 = V2 - V0;
-			vec3 pv = cross(RayDirection, e1);
+			vec3 pv = cross(rayDirection, e1);
 
 			float det = dot(e0, pv);
 			{
@@ -173,15 +189,15 @@ Intersection raytrace(const Ray ray)
 
 				vec4 uvt;
 				uvt.x = dot(tv, pv);
-				uvt.y = dot(RayDirection, qv);
+				uvt.y = dot(rayDirection, qv);
 				uvt.z = dot(e1, qv);
 				uvt.xyz = uvt.xyz / det;
 				uvt.w = 1.0 - uvt.x - uvt.y;
 
 				if (all(greaterThanEqual(uvt, vec4(0.0))) && (uvt.z < isect.a) && (BRDF != -1))
 				{
-					Barycentric = uvt.ywx;
-					isect = vec4(TriangleStartIndex, MaterialIndex, uvt.z);
+					barycentric = uvt.ywx;
+					isect = vec4(triangleStartIndex, materialIndex, uvt.z);
 				}
 			}
 		}
@@ -189,51 +205,51 @@ Intersection raytrace(const Ray ray)
 		if (BBHit)
 		{
 			// hit
-			BBoxIndex.xy = BBoxNextIndex.xy;
+			bboxIndex.xy = bboxNextIndex.xy;
 		}
 		else
 		{
 			// miss
-			BBoxIndex.xy = BBoxNextIndex.wz;
+			bboxIndex.xy = bboxNextIndex.wz;
 		}
-		if (BBoxIndex.x < 0.0) break;
+		if (bboxIndex.x < 0.0) break;
 	};
 
 	if (isect.x >= 0.0)
 	{
-		vec2 TriangleIndex = isect.xy;
+		vec2 triangleIndex = isect.xy;
 
-		vec4 V0 = texture2D(TexturePolygons, TriangleIndex); next(TriangleIndex, 1.0);
-		vec4 V1 = texture2D(TexturePolygons, TriangleIndex); next(TriangleIndex, 1.0);
-		vec4 V2 = texture2D(TexturePolygons, TriangleIndex); next(TriangleIndex, 1.0);
+		vec4 V0 = texture(texturePolygons, triangleIndex); next(triangleIndex, 1.0);
+		vec4 V1 = texture(texturePolygons, triangleIndex); next(triangleIndex, 1.0);
+		vec4 V2 = texture(texturePolygons, triangleIndex); next(triangleIndex, 1.0);
 
-		vec4 N0 = texture2D(TexturePolygons, TriangleIndex); next(TriangleIndex, 1.0);
-		vec4 N1 = texture2D(TexturePolygons, TriangleIndex); next(TriangleIndex, 1.0);
-		vec4 N2 = texture2D(TexturePolygons, TriangleIndex); 
+		vec4 N0 = texture(texturePolygons, triangleIndex); next(triangleIndex, 1.0);
+		vec4 N1 = texture(texturePolygons, triangleIndex); next(triangleIndex, 1.0);
+		vec4 N2 = texture(texturePolygons, triangleIndex);
 
 		N0.z = sign(N0.z) * sqrt(abs(1.0 - N0.x * N0.x - N0.y * N0.y)); 
 		N1.z = sign(N1.z) * sqrt(abs(1.0 - N1.x * N1.x - N1.y * N1.y)); 
 		N2.z = sign(N2.z) * sqrt(abs(1.0 - N2.x * N2.x - N2.y * N2.y)); 
 
-		Result.t = isect.w;
-		Result.pos = V2.xyz * Barycentric.x + V0.xyz * Barycentric.y + V1.xyz * Barycentric.z;
-		Result.nrm = normalize(N2.xyz * Barycentric.x + N0.xyz * Barycentric.y + N1.xyz * Barycentric.z);
-		Result.gnrm = normalize(cross(V1.xyz - V0.xyz, V2.xyz - V0.xyz));
+		result.t = isect.w;
+		result.pos = V2.xyz * barycentric.x + V0.xyz * barycentric.y + V1.xyz * barycentric.z;
+		result.nrm = normalize(N2.xyz * barycentric.x + N0.xyz * barycentric.y + N1.xyz * barycentric.z);
+		result.gnrm = normalize(cross(V1.xyz - V0.xyz, V2.xyz - V0.xyz));
 
 		vec2 T0 = vec2(V0.w, N0.w);
 		vec2 T1 = vec2(V1.w, N1.w);
 		vec2 T2 = vec2(V2.w, N2.w);
-		Result.tex = T2 * Barycentric.x + T0 * Barycentric.y + T1 * Barycentric.z;
+		result.tex = T2 * barycentric.x + T0 * barycentric.y + T1 * barycentric.z;
 
-		Result.col = texture2D(TextureMaterials, vec2((isect.z + 0.0 + 0.25) * MaterialStride, 0.0)).xyz;
-		Result.brdf = int(texture2D(TextureMaterials, vec2((isect.z + 0.5 + 0.25) * MaterialStride, 0.0)).x);
-		Result.g = texture2D(TextureMaterials, vec2((isect.z + 0.5 + 0.25) * MaterialStride, 0.0)).y;
-		Result.eta = texture2D(TextureMaterials, vec2((isect.z + 0.0 + 0.25) * MaterialStride, 0.0)).w;
-		Result.matid = isect.z;
+		result.col = texture(textureMaterials, vec2((isect.z + 0.0 + 0.25) * materialStride, 0.0)).xyz;
+		result.brdf = int(texture(textureMaterials, vec2((isect.z + 0.5 + 0.25) * materialStride, 0.0)).x);
+		result.g = texture(textureMaterials, vec2((isect.z + 0.5 + 0.25) * materialStride, 0.0)).y;
+		result.eta = texture(textureMaterials, vec2((isect.z + 0.0 + 0.25) * materialStride, 0.0)).w;
+		result.matid = isect.z;
 	}
 
-	LastIntersection = isect;
-	return Result;
+	lastIntersection = isect;
+	return result;
 }
 
 
@@ -259,9 +275,9 @@ vec3 glossy_reflect(const vec3 d, const vec3 n, const float g, inout vec4 rndv)
 }
 
 
-void GenerateIBLSample(inout vec4 rndv, out vec3 flux, out vec3 dir, out vec3 org)
+void generateIBLSample(inout vec4 rndv, out vec3 flux, out vec3 dir, out vec3 org)
 {
-	float SceneProjectedArea = 4 * 3.141592 * SceneBSphere.w * SceneBSphere.w;
+	float sceneProjectedArea = 4.0 * 3.141592 * sceneBSphere.w * sceneBSphere.w;
 
 	float temp1 = 2.0 * acos(sqrt(1.0 - GPURnd(rndv)));
 	float temp2 = 2.0 * 3.141592 * GPURnd(rndv);
@@ -275,23 +291,23 @@ void GenerateIBLSample(inout vec4 rndv, out vec3 flux, out vec3 dir, out vec3 or
 		dir.y = 2.0 * dir.y;
 		dir.z = -dir.z;
 		dir = normalize(dir);
-		flux = vec3(1.0, 1.0, 0.7) * SceneProjectedArea;
+		flux = vec3(1.0, 1.0, 0.7) * sceneProjectedArea;
 	}
 	else
 	{
-		flux = vec3(0.7, 0.7, 1.0) * SceneProjectedArea;
+		flux = vec3(0.7, 0.7, 1.0) * sceneProjectedArea;
 	}
 
 	float radius = sqrt(GPURnd(rndv));
 	float theta = 2.0 * 3.141592 * GPURnd(rndv);
 	vec3 temp = vec3(radius * cos(theta), 0.0, radius * sin(theta));
-	org = onb(temp * SceneBSphere.w, dir) + dir * SceneBSphere.w + SceneBSphere.xyz;
+	org = onb(temp * sceneBSphere.w, dir) + dir * sceneBSphere.w + sceneBSphere.xyz;
 	dir = -dir;
 }
 
 
 
-void GenerateLightSourceSample(inout vec4 rndv, out vec3 flux, out vec3 dir, out vec3 org)
+void generateLightSourceSample(inout vec4 rndv, out vec3 flux, out vec3 dir, out vec3 org)
 {
 	// generate uniform random values
 	float Rnd = GPURnd(rndv);
@@ -299,28 +315,33 @@ void GenerateLightSourceSample(inout vec4 rndv, out vec3 flux, out vec3 dir, out
 
 	// binary search
 	int low = 0;
-	int high = int(1.0 / LightSourceStride + 0.5);
-	vec2 LightIndex;
-	while (low < high) 
+	int high = int(1.0 / lightSourceStride + 0.5);
+	vec2 lightIndex;
+
+    int itr = 0;
+	while (itr < MAX_LOOP)
 	{
-		int mid = low + ((high - low) / int(2));  
-		vec2 midv = vec2((float(mid) - 0.5) * LightSourceStride, 0.0);
-		vec3 tmpv = texture2D(TextureLightSources, midv).xyz;
-		LightIndex = tmpv.xy;
+	    itr = itr + 1;
+		int mid = low + ((high - low) / int(2));
+		vec2 midv = vec2((float(mid) - 0.5) * lightSourceStride, 0.0);
+		vec3 tmpv = texture(textureLightSources, midv).xyz;
+		lightIndex = tmpv.xy;
 
 		if (tmpv.z < Rnd)
 		{
-			low = mid + 1; 
+			low = mid + 1;
 		}
 		else
 		{
-			high = mid; 
+			high = mid;
 		}
+
+		if(low >= high) break;
 	}
 	{
-		vec2 midv = vec2((float(high) - 0.5) * LightSourceStride, 0.0);
-		vec3 tmpv = texture2D(TextureLightSources, midv).xyz;
-		LightIndex = tmpv.xy;
+		vec2 midv = vec2((float(high) - 0.5) * lightSourceStride, 0.0);
+		vec3 tmpv = texture(textureLightSources, midv).xyz;
+		lightIndex = tmpv.xy;
 	}
 
 	// calculate paramters
@@ -334,24 +355,24 @@ void GenerateLightSourceSample(inout vec4 rndv, out vec3 flux, out vec3 dir, out
 	float c = s * t;
 
 	// interpolate the position and the normal
-	vec2 TriangleIndex = LightIndex;
+	vec2 triangleIndex = lightIndex;
 
-	vec4 V0 = texture2D(TexturePolygons, TriangleIndex); next(TriangleIndex, 1.0);
-	vec4 V1 = texture2D(TexturePolygons, TriangleIndex); next(TriangleIndex, 1.0);
-	vec4 V2 = texture2D(TexturePolygons, TriangleIndex); next(TriangleIndex, 1.0);
+	vec4 V0 = texture(texturePolygons, triangleIndex); next(triangleIndex, 1.0);
+	vec4 V1 = texture(texturePolygons, triangleIndex); next(triangleIndex, 1.0);
+	vec4 V2 = texture(texturePolygons, triangleIndex); next(triangleIndex, 1.0);
 
-	vec4 N0 = texture2D(TexturePolygons, TriangleIndex); next(TriangleIndex, 1.0);
-	vec4 N1 = texture2D(TexturePolygons, TriangleIndex); next(TriangleIndex, 1.0);
-	vec4 N2 = texture2D(TexturePolygons, TriangleIndex); 
-	float MaterialIndex = abs(N0.z) - 1.0;
+	vec4 N0 = texture(texturePolygons, triangleIndex); next(triangleIndex, 1.0);
+	vec4 N1 = texture(texturePolygons, triangleIndex); next(triangleIndex, 1.0);
+	vec4 N2 = texture(texturePolygons, triangleIndex);
+	float materialIndex = abs(N0.z) - 1.0;
 
 	N0.z = sign(N0.z) * sqrt(abs(1.0 - N0.x * N0.x - N0.y * N0.y)); 
 	N1.z = sign(N1.z) * sqrt(abs(1.0 - N1.x * N1.x - N1.y * N1.y)); 
 	N2.z = sign(N2.z) * sqrt(abs(1.0 - N2.x * N2.x - N2.y * N2.y)); 
 
-	flux = texture2D(TextureMaterials, vec2((MaterialIndex + 0.0 + 0.25) * MaterialStride, 0.0)).xyz;
+	flux = texture(textureMaterials, vec2((materialIndex + 0.0 + 0.25) * materialStride, 0.0)).xyz;
 
-	flux *= vec3(LightSummedArea * 3.141592);
+	flux *= vec3(lightSummedArea * 3.141592);
 
 	vec2 T0 = vec2(V0.w, N0.w);
 	vec2 T1 = vec2(V1.w, N1.w);
@@ -360,7 +381,7 @@ void GenerateLightSourceSample(inout vec4 rndv, out vec3 flux, out vec3 dir, out
 
 	if (abs(T.x) < 1e+10) 
 	{
-		flux *= texture3D(VolumeTextureTextures, vec3(T, MaterialNumRcp * (MaterialIndex + 0.5 + 0.25))).rgb;
+		flux *= texture(volumeTextureTextures, vec3(T, materialNumRcp * (materialIndex + 0.5 + 0.25))).rgb;
 	}
 
 	org = V0.xyz * a + V1.xyz * b + V2.xyz * c;
@@ -380,7 +401,7 @@ void GenerateLightSourceSample(inout vec4 rndv, out vec3 flux, out vec3 dir, out
 }
 
 
-float Fresnel(in vec3 incom, in vec3 normal, in float index_internal, in float index_external) 
+float fresnel(in vec3 incom, in vec3 normal, in float index_internal, in float index_external)
 {
 	float eta = index_internal / index_external;
 	float cos_theta1 = dot(incom, normal);
@@ -402,103 +423,103 @@ float Fresnel(in vec3 incom, in vec3 normal, in float index_internal, in float i
 
 void main()
 {
-	vec2 PixelIndex = gl_TexCoord[0].st; 
+	vec2 pixelIndex = v_texcoord_0.st;
 
 	// state of the random number generator
-	vec4 rndv = texture2D(RandomTexture, PixelIndex);
+	vec4 rndv = texture(randomTexture, pixelIndex);
 
 	// read previous intersection
-	vec4 PhotonPosition = texture2D(PhotonPositionTexture, PixelIndex);
-	vec4 PhotonFlux = texture2D(PhotonFluxTexture, PixelIndex);
-	vec4 PhotonDirection = texture2D(PhotonDirectionTexture, PixelIndex);
-	vec3 PhotonNrm = vec3(PhotonPosition.w, PhotonFlux.w, PhotonDirection.w);
+	vec4 photonPosition = texture(photonPositionTexture, pixelIndex);
+	vec4 PhotonFlux = texture(photonFluxTexture, pixelIndex);
+	vec4 photonDirection = texture(photonDirectionTexture, pixelIndex);
+	vec3 photonNrm = vec3(photonPosition.w, PhotonFlux.w, photonDirection.w);
 
 	vec3 flux = abs(PhotonFlux.rgb);
 	Ray r;
 
 
-	bool ContinueTrace;
-	float EmittedFlag;
+	bool continueTrace;
+	float emittedFlag;
 
-	vec4 PhotonIntersection = texture2D(PhotonIntersectionTexture, PixelIndex);
-	PhotonIntersection.z += 1.0;
+	vec4 photonIntersection = texture(photonIntersectionTexture, pixelIndex);
+	photonIntersection.z += 1.0;
 
-	if ((PhotonIntersection.x < 0.0) || (PhotonIntersection.z >= MaxPathLength))
+	if ((photonIntersection.x < 0.0) || (photonIntersection.z >= float(maxPathLength)))
 	{
 		// the last photon trace was terminated, generate a new photon 
-		if (LightSummedArea != 0.0)
+		if (lightSummedArea != 0.0)
 		{
-			GenerateLightSourceSample(rndv, flux, r.dir, r.org);
+			generateLightSourceSample(rndv, flux, r.dir, r.org);
 		}
 		else
 		{
-			GenerateIBLSample(rndv, flux, r.dir, r.org);
+			generateIBLSample(rndv, flux, r.dir, r.org);
 		}
 
-		EmittedFlag = 1.0;
+		emittedFlag = 1.0;
 
 		// reset the trace level
-		PhotonIntersection.z = 0.0;
-		ContinueTrace = true;
+		photonIntersection.z = 0.0;
+		continueTrace = true;
 	}
 	else
 	{
 		// extra bounce
 		Intersection i;
-		vec2 TriangleIndex = PhotonIntersection.xy;
+		vec2 triangleIndex = photonIntersection.xy;
 
-		vec4 V0 = texture2D(TexturePolygons, TriangleIndex); next(TriangleIndex, 1.0);
-		vec4 V1 = texture2D(TexturePolygons, TriangleIndex); next(TriangleIndex, 1.0);
-		vec4 V2 = texture2D(TexturePolygons, TriangleIndex); next(TriangleIndex, 1.0);
+		vec4 V0 = texture(texturePolygons, triangleIndex); next(triangleIndex, 1.0);
+		vec4 V1 = texture(texturePolygons, triangleIndex); next(triangleIndex, 1.0);
+		vec4 V2 = texture(texturePolygons, triangleIndex); next(triangleIndex, 1.0);
 
-		vec4 N0 = texture2D(TexturePolygons, TriangleIndex); next(TriangleIndex, 1.0);
-		vec4 N1 = texture2D(TexturePolygons, TriangleIndex); next(TriangleIndex, 1.0);
-		vec4 N2 = texture2D(TexturePolygons, TriangleIndex); 
+		vec4 N0 = texture(texturePolygons, triangleIndex); next(triangleIndex, 1.0);
+		vec4 N1 = texture(texturePolygons, triangleIndex); next(triangleIndex, 1.0);
+		vec4 N2 = texture(texturePolygons, triangleIndex);
 
 		i.gnrm = normalize(cross(V1.xyz - V0.xyz, V2.xyz - V0.xyz));
 
 
-		vec4 Barycentric;
+		vec4 barycentric;
 		vec3 t0, t1, t2;
 
 		t0 = V1.xyz - V1.xyz;
-		t1 = PhotonPosition.xyz - V0.xyz;
+		t1 = photonPosition.xyz - V0.xyz;
 		t2 = cross(t0, t1);
-		Barycentric.x = length(t2);
+		barycentric.x = length(t2);
 
 		t0 = V2.xyz - V1.xyz;
-		t1 = PhotonPosition.xyz - V1.xyz;
+		t1 = photonPosition.xyz - V1.xyz;
 		t2 = cross(t0, t1);
-		Barycentric.y = length(t2);
+		barycentric.y = length(t2);
 
 		t0 = V0.xyz - V2.xyz;
-		t1 = PhotonPosition.xyz - V2.xyz;
+		t1 = photonPosition.xyz - V2.xyz;
 		t2 = cross(t0, t1);
-		Barycentric.z = length(t2);
+		barycentric.z = length(t2);
 
-		Barycentric.w = Barycentric.x + Barycentric.y + Barycentric.z;
-		Barycentric = Barycentric / Barycentric.w;
+		barycentric.w = barycentric.x + barycentric.y + barycentric.z;
+		barycentric = barycentric / barycentric.w;
 
 		vec2 T0 = vec2(V0.w, N0.w);
 		vec2 T1 = vec2(V1.w, N1.w);
 		vec2 T2 = vec2(V2.w, N2.w);
-		i.tex = T2 * Barycentric.x + T0 * Barycentric.y + T1 * Barycentric.z;
+		i.tex = T2 * barycentric.x + T0 * barycentric.y + T1 * barycentric.z;
 
 
 		// last intersection
-		i.t = PhotonIntersection.w; // later it will be used for distance based attenuation
-		i.pos = PhotonPosition.xyz;
-		i.nrm = PhotonNrm;
-		float MaterialIndex = abs(N0.z) - 1.0;
-		i.col = texture2D(TextureMaterials, vec2((MaterialIndex + 0.25) * MaterialStride, 0.0)).xyz;
-		//i.brdf = BRDFs[int(MaterialIndex + 0.25)];
-		i.brdf = int(texture2D(TextureMaterials, vec2((MaterialIndex + 0.5 + 0.25) * MaterialStride, 0.0)).x);
-		i.eta = texture2D(TextureMaterials, vec2((MaterialIndex + 0.25) * MaterialStride, 0.0)).w; 
-		i.g = texture2D(TextureMaterials, vec2((MaterialIndex + 0.5 + 0.25) * MaterialStride, 0.0)).y; 
+		i.t = photonIntersection.w; // later it will be used for distance based attenuation
+		i.pos = photonPosition.xyz;
+		i.nrm = photonNrm;
+		float materialIndex = abs(N0.z) - 1.0;
+		i.col = texture(textureMaterials, vec2((materialIndex + 0.25) * materialStride, 0.0)).xyz;
+		//i.brdf = BRDFs[int(materialIndex + 0.25)];
+		i.brdf = int(texture(textureMaterials, vec2((materialIndex + 0.5 + 0.25) * materialStride, 0.0)).x);
+		i.eta = texture(textureMaterials, vec2((materialIndex + 0.25) * materialStride, 0.0)).w;
+		i.g = texture(textureMaterials, vec2((materialIndex + 0.5 + 0.25) * materialStride, 0.0)).y;
 
 		if (abs(i.tex.x) < 1e+10) 
 		{
-			i.col *= texture3D(VolumeTextureTextures, vec3(i.tex, MaterialNumRcp * (MaterialIndex + 0.5 + 0.25))).rgb;
+			i.col *= texture(volumeTextureTextures, vec3(i.tex, materialNumRcp * (materialIndex + 0.5 + 0.25))).rgb;
 		}
 
 		if (i.brdf == 0)
@@ -517,7 +538,7 @@ void main()
 			// metal
 			r.org = i.pos + eps * i.gnrm;
 			if (i.brdf == 4) i.nrm = glossy_reflect(i.nrm, i.nrm, 1.0 / pow((1.0 - i.g) * 0.5, 2.71828), rndv);
-			r.dir = reflect(PhotonDirection.xyz, i.nrm);
+			r.dir = reflect(photonDirection.xyz, i.nrm);
 
 			if (dot(r.dir, i.gnrm) < 0.0) r.dir = -r.dir;
 		}
@@ -526,18 +547,18 @@ void main()
 			if (i.brdf == 5) i.nrm = glossy_reflect(i.nrm, i.nrm, 1.0 / pow((1.0 - i.g) * 0.5, 2.71828), rndv);
 
 			// dielectric
-			float ln = dot(i.nrm, PhotonDirection.xyz);
+			float ln = dot(i.nrm, photonDirection.xyz);
 			float eta = i.eta;
 
 			if (ln < 0.0)
 			{
 				// ray is going in
-				float Re = Fresnel(-PhotonDirection.xyz, i.nrm, 1.0, eta);
+				float Re = fresnel(-photonDirection.xyz, i.nrm, 1.0, eta);
 				if (GPURnd(rndv) < Re)
 				{
 					// specular reflection
 					r.org = i.pos + eps * i.gnrm;
-					r.dir = reflect(PhotonDirection.xyz, i.nrm);
+					r.dir = reflect(photonDirection.xyz, i.nrm);
 					i.col = vec3(1.0);
 					if (dot(r.dir, i.gnrm) < 0.0) r.dir = -r.dir;
 				}
@@ -545,25 +566,25 @@ void main()
 				{
 					// specular refraction
 					r.org = i.pos - eps * i.gnrm;
-					r.dir = refract(PhotonDirection.xyz, i.nrm, 1.0 / eta);
+					r.dir = refract(photonDirection.xyz, i.nrm, 1.0 / eta);
 					if (dot(r.dir, i.gnrm) > 0.0) r.dir = -r.dir;
 				}
 			}
 			else
 			{
-				float Re = Fresnel(-PhotonDirection.xyz, -i.nrm, eta, 1.0);
+				float Re = fresnel(-photonDirection.xyz, -i.nrm, eta, 1.0);
 				if (GPURnd(rndv) < Re)
 				{
 					// specular reflection
 					r.org = i.pos - eps * i.gnrm;
-					r.dir = reflect(PhotonDirection.xyz, -i.nrm);
+					r.dir = reflect(photonDirection.xyz, -i.nrm);
 					if (dot(r.dir, -i.gnrm) < 0.0) r.dir = -r.dir;
 				}
 				else
 				{
 					// specular refraction
 					r.org = i.pos + eps * i.gnrm;
-					r.dir = refract(PhotonDirection.xyz, -i.nrm, eta);
+					r.dir = refract(photonDirection.xyz, -i.nrm, eta);
 					if (dot(r.dir, -i.gnrm) > 0.0) r.dir = -r.dir;
 				}
 			}
@@ -573,14 +594,14 @@ void main()
 			if (i.brdf == 6) i.nrm = glossy_reflect(i.nrm, i.nrm, 1.0 / pow((1.0 - i.g) * 0.5, 2.71828), rndv);
 
 			// plastic
-			float ln = -abs(dot(i.nrm, PhotonDirection.xyz));
+			float ln = -abs(dot(i.nrm, photonDirection.xyz));
 			float eta = i.eta;
-			float Re = Fresnel(-PhotonDirection.xyz, i.nrm, 1.0, eta);
+			float Re = fresnel(-photonDirection.xyz, i.nrm, 1.0, eta);
 			if (GPURnd(rndv) < Re)
 			{
 				// specular reflection (assume that the color of the coating is 1.0)
 				r.org = i.pos + eps * i.gnrm;
-				r.dir = reflect(PhotonDirection.xyz, i.nrm);
+				r.dir = reflect(photonDirection.xyz, i.nrm);
 				i.col = vec3(1.0);
 				if (dot(r.dir, i.gnrm) < 0.0) r.dir = -r.dir;
 			}
@@ -602,21 +623,21 @@ void main()
 		if (p < GPURnd(rndv))
 		{
 			// photon is terminated
-			ContinueTrace = false;
+			continueTrace = false;
 		}
 		else
 		{
 			// continue tracing
-			ContinueTrace = true;
+			continueTrace = true;
 			i.col = i.col / p;
 			flux = flux * i.col;
 		}
-		EmittedFlag = 0.0;
+		emittedFlag = 0.0;
 	}
 
 
 
-	if (ContinueTrace)
+	if (continueTrace)
 	{
 		Intersection i = raytrace(r);
 
@@ -629,21 +650,21 @@ void main()
 		float gfactor = min(abs(dot(r.dir, i.nrm) / dot(r.dir, i.gnrm)), sqrt(5.0));
 		flux *= gfactor;
 
-		LastIntersection.z = PhotonIntersection.z;
-		gl_FragData[0] = vec4(i.pos, i.nrm.x);
-		gl_FragData[1] = vec4( flux, i.nrm.y);
-		gl_FragData[2] = vec4(r.dir, i.nrm.z);
-		gl_FragData[3] = rndv;
-		gl_FragData[4] = LastIntersection;
-		gl_FragData[5] = vec4(EmittedFlag);
+		lastIntersection.z = photonIntersection.z;
+		fragData0 = vec4(i.pos, i.nrm.x);
+		fragData1 = vec4( flux, i.nrm.y);
+		fragData2 = vec4(r.dir, i.nrm.z);
+		fragData3 = rndv;
+		fragData4 = lastIntersection;
+		fragData5 = vec4(emittedFlag);
 	}
 	else
 	{
-		gl_FragData[0] = vec4(0.0);
-		gl_FragData[1] = vec4(vec3(-1.0), 0.0);
-		gl_FragData[2] = vec4(0.0);
-		gl_FragData[3] = rndv;
-		gl_FragData[4] = vec4(-1.0, -1.0, 0.0, 1e+30);
-		gl_FragData[5] = vec4(EmittedFlag);
+		fragData0 = vec4(0.0);
+		fragData1 = vec4(vec3(-1.0), 0.0);
+		fragData2 = vec4(0.0);
+		fragData3 = rndv;
+		fragData4 = vec4(-1.0, -1.0, 0.0, 1e+30);
+		fragData5 = vec4(emittedFlag);
 	}
 }

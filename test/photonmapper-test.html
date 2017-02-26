@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <title>Test</title>
     <!--<script src="../libs/require.js"></script>-->
+    <script src="../libs/gl-matrix.js"></script>
     <script src="../node_modules/systemjs/dist/system.src.js"></script>
     <script>
         exports = window.exports || {};
@@ -23,7 +24,7 @@
     </script>
 </head>
 <body>
-<canvas id="xray" width="600" height="600"></canvas>
+<canvas id="xray" width="512" height="512" style="background: #000"></canvas>
     <script>
         let canvas = document.getElementById("xray");
         window.gl = canvas.getContext("webgl2");

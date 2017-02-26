@@ -52,7 +52,7 @@ export async function loadPPM(fileName: string, i: number) {
 
 export function loadMTL(contents: string, base="") {
 
-    let mtl: Material = new Material();
+    let mtl: Material;
     let limit = contents.length;
     let j = 0;
 
@@ -64,8 +64,10 @@ export function loadMTL(contents: string, base="") {
 
         if (lineStr.substring(0, 6) == "newmtl") {
             lineStr = lineStr.substring(7, lineStr.length - 1);
+            mtl = new Material();
             mtl.name = lineStr;
             mtl.isTextured = false;
+            mtls.push(mtl);
         }
         else if (lineStr.substring(0, 2) == "Ka") {
             lineStr = lineStr.substring(3, lineStr.length - 1);
@@ -85,7 +87,6 @@ export function loadMTL(contents: string, base="") {
         else if (lineStr.substring(0, 2) == "Ns") {
             lineStr = lineStr.substring(3, lineStr.length - 1);
             mtl.Ns = parseFloat(lineStr);
-            mtls.push(mtl);
         }
         else if (lineStr.substring(0, 6) == "map_Kd") {
             // lineStr = lineStr.substring(7, lineStr.length - 2);

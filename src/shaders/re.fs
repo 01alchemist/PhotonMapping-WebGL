@@ -1,10 +1,14 @@
-#version 120
+#version 300 es
 
+precision mediump float;
 
-uniform sampler2D QueryFluxRadiusTexture;
-uniform sampler2D QueryEmissionPhotonCountTexture;
-uniform float TotalPhotonNum;
+in vec2 v_texcoord_0;
 
+uniform sampler2D queryFluxRadiusTexture;
+uniform sampler2D queryEmissionPhotonCountTexture;
+uniform float totalPhotonNum;
+
+out vec4 fragmentColor;
 
 float sRGB(const float c)
 {
@@ -22,26 +26,26 @@ float sRGB(const float c)
 
 void main()
 {
-	vec2 PixelIndex = gl_TexCoord[0].st;
+	vec2 PixelIndex = v_texcoord_0.st;
 
 	// fetch various data of the measurement point
-	vec4 QueryFluxRadius = texture2D(QueryFluxRadiusTexture, PixelIndex);
+	vec4 QueryFluxRadius = texture(queryFluxRadiusTexture, PixelIndex);
 	float QueryRadius = QueryFluxRadius.w;
 	vec3 QueryFlux = QueryFluxRadius.xyz;
-	vec3 QueryEmission = texture2D(QueryEmissionPhotonCountTexture, PixelIndex).rgb;
+	vec3 QueryEmission = texture(queryEmissionPhotonCountTexture, PixelIndex).rgb;
 
 	// perform progressive density estimation
-	gl_FragColor = vec4(QueryFlux / (QueryRadius * QueryRadius * 3.141592 * TotalPhotonNum), 1.0);
+	fragmentColor = vec4(QueryFlux / (QueryRadius * QueryRadius * 3.141592 * totalPhotonNum), 1.0);
 
 	// add emission
-	gl_FragColor = gl_FragColor + vec4(QueryEmission, 0.0); 
+	fragmentColor = fragmentColor + vec4(QueryEmission, 0.0); 
 
 	// tone mapping
 	const float Exposure = 60000.0;
-	gl_FragColor = vec4(1.0) - exp(-gl_FragColor * Exposure);
+	fragmentColor = vec4(1.0) - exp(-fragmentColor * Exposure);
 
 	// sRGB conversion
-	gl_FragColor.r = sRGB(gl_FragColor.r);
-	gl_FragColor.g = sRGB(gl_FragColor.g);
-	gl_FragColor.b = sRGB(gl_FragColor.b);
+	fragmentColor.r = sRGB(fragmentColor.r);
+	fragmentColor.g = sRGB(fragmentColor.g);
+	fragmentColor.b = sRGB(fragmentColor.b);
 }

@@ -47,7 +47,8 @@ let photonCorrectionTexture: WebGLTexture;
 let randomPhotonTexture: WebGLTexture;
 let randomEyeRayTexture: WebGLTexture;
 let photonIntersectionTexture: WebGLTexture;
-let photonEmittedFlagTexture: WebGLTexture;
+let photonEmittedFlagTexture1: WebGLTexture;
+let photonEmittedFlagTexture2: WebGLTexture;
 
 
 let eyeRayTraceSurface: WebGLFramebuffer;
@@ -111,7 +112,7 @@ function m_printInfoLogs(obj, shader) {
 function createFullShader(vertex_shader_path: string, fragment_shader_path: string) {
     // create a fragment shader and a vertex shader
     let program = gl.createProgram();
-    console.log(`compiling ${vertex_shader_path}...`);
+    // console.log(`compiling ${vertex_shader_path}...`);
 
     let vertexShaderSource = fs.getTextFile(vertex_shader_path);
 
@@ -120,8 +121,9 @@ function createFullShader(vertex_shader_path: string, fragment_shader_path: stri
     gl.compileShader(shader);
     gl.attachShader(program, shader);
 
-    console.log("done.");
-    console.log(`compiling ${fragment_shader_path}...`);
+    // console.log("done.");
+
+    // console.log(`compiling ${fragment_shader_path}...`);
     let fragmentShaderSource = fs.getTextFile(fragment_shader_path);
 
     shader = gl.createShader(gl.FRAGMENT_SHADER);
@@ -134,7 +136,7 @@ function createFullShader(vertex_shader_path: string, fragment_shader_path: stri
         let info = gl.getProgramInfoLog(program);
         console.error('Could not compile WebGL program. \n\n' + info);
     } else {
-        console.log("done.");
+        // console.log("done.");
     }
 
     return program;
@@ -188,6 +190,13 @@ export class PhotonMapper {
     }
 
     init() {
+
+        console.log("MAX_COLOR_ATTACHMENTS:" + gl.getParameter(gl.MAX_COLOR_ATTACHMENTS));
+        console.log("MAX_DRAW_BUFFERS:" + gl.getParameter(gl.MAX_DRAW_BUFFERS));
+        console.log("MAX_TEXTURE_SIZE:" + gl.getParameter(gl.MAX_TEXTURE_SIZE));
+        console.log("MAX_TEXTURE_IMAGE_UNITS:" + gl.getParameter(gl.MAX_TEXTURE_IMAGE_UNITS));
+        console.log("MAX_VERTEX_TEXTURE_IMAGE_UNITS:" + gl.getParameter(gl.MAX_VERTEX_TEXTURE_IMAGE_UNITS));
+
         //Extensions
         var ext = gl.getExtension('EXT_color_buffer_float');
 
@@ -328,7 +337,13 @@ export class PhotonMapper {
         let textureOffset = 1.0 / (1 << level);
 
         gl.uniform1i(gl.getUniformLocation(shader, "inputTexture"), 15);
-        this.setTexture(15, texture);
+
+        if(texture instanceof Array){
+            this.setTexture(15, texture[1]);
+           //gl.framebufferTexture2D(gl.DRAW_FRAMEBUFFER, gl.COLOR_ATTACHMENT5, gl.TEXTURE_2D, texture[1], 0);
+        }else{
+            this.setTexture(15, texture);
+        }
         gl.uniform2f(gl.getUniformLocation(shader, "offset"), textureOffset, textureOffset);
         this.drawQuadwithTex(reducedBufferSize, reducedBufferSize, textureOffset, textureOffset);
 
@@ -398,7 +413,8 @@ export class PhotonMapper {
         photonDirectionTexture = this.createTexture(11, gl.RGBA32F, photonBufferSize);
 
         photonIntersectionTexture = this.createTexture(15, gl.RGBA32F, photonBufferSize);
-        photonEmittedFlagTexture = this.createTexture(15, gl.RGBA32F, photonBufferSize);
+        photonEmittedFlagTexture1 = this.createTexture(15, gl.RGBA32F, photonBufferSize);
+        photonEmittedFlagTexture2 = this.createTexture(17, gl.RGBA32F, photonBufferSize);
         queryIntersectionTexture = this.createTexture(15, gl.RGBA32F, imageResolution);
 
         // buffer for computing min/max/average
@@ -439,9 +455,6 @@ export class PhotonMapper {
         gl.framebufferTexture2D(gl.DRAW_FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, photonCorrectionTexture, 0);
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
-        console.log("MAX_COLOR_ATTACHMENTS:" + gl.getParameter(gl.MAX_COLOR_ATTACHMENTS));
-        console.log("MAX_DRAW_BUFFERS:" + gl.getParameter(gl.MAX_DRAW_BUFFERS));
-
         // eye ray intersection data
         eyeRayTraceSurface = gl.createFramebuffer();
         gl.bindFramebuffer(gl.FRAMEBUFFER, eyeRayTraceSurface);
@@ -461,7 +474,7 @@ export class PhotonMapper {
         gl.framebufferTexture2D(gl.DRAW_FRAMEBUFFER, gl.COLOR_ATTACHMENT2, gl.TEXTURE_2D, photonDirectionTexture, 0);
         gl.framebufferTexture2D(gl.DRAW_FRAMEBUFFER, gl.COLOR_ATTACHMENT3, gl.TEXTURE_2D, randomPhotonTexture, 0);
         gl.framebufferTexture2D(gl.DRAW_FRAMEBUFFER, gl.COLOR_ATTACHMENT4, gl.TEXTURE_2D, photonIntersectionTexture, 0);
-        gl.framebufferTexture2D(gl.DRAW_FRAMEBUFFER, gl.COLOR_ATTACHMENT5, gl.TEXTURE_2D, photonEmittedFlagTexture, 0);
+        gl.framebufferTexture2D(gl.DRAW_FRAMEBUFFER, gl.COLOR_ATTACHMENT5, gl.TEXTURE_2D, photonEmittedFlagTexture1, 0);
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
         // measurement points
@@ -523,7 +536,7 @@ export class PhotonMapper {
 
     render() {
 
-        if (this.iteration++ > 5) {
+        if (this.iteration++ > 100) {
             return;
         }
 
@@ -724,7 +737,7 @@ export class PhotonMapper {
         this.drawQuad(photonBufferSize, photonBufferSize);
         let numCurrentEmittedPhotons: Float32Array = this.reduceTexture(
             minMaxAveSurfacePhoton, minMaxAveTexturePhoton1, minMaxAveTexturePhoton2,
-            photonEmittedFlagTexture, shaderSum, photonBufferSize
+            [photonEmittedFlagTexture1, photonEmittedFlagTexture2], shaderSum, photonBufferSize
         );
         numPhotons += Math.floor(numCurrentEmittedPhotons[0]);
 
@@ -948,7 +961,8 @@ export class PhotonMapper {
         gl.deleteTexture(photonHashTexture);
         gl.deleteTexture(photonCorrectionTexture);
         gl.deleteTexture(photonIntersectionTexture);
-        gl.deleteTexture(photonEmittedFlagTexture);
+        gl.deleteTexture(photonEmittedFlagTexture1);
+        gl.deleteTexture(photonEmittedFlagTexture2);
 
         gl.deleteTexture(minMaxAveTextureQuery1);
         gl.deleteTexture(minMaxAveTextureQuery2);

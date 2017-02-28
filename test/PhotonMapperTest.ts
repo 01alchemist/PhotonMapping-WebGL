@@ -26,12 +26,15 @@ export class PhotonMapperTest {
     load(callback) {
 
         let filesToLoad = [
+            // {src: "textures/debug_texture.jpg", name:"debug_texture.jpg", type: "image"},
             {src: "models/cornell_metal.obj", name:"cornell_metal.obj", type: "text"},
             {src: "models/cornell_metal.mtl", name:"cornell_metal.mtl", type: "text"},
             {src: "models/stanford-dragon/stanford-dragon.obj", name:"models/stanford-dragon.obj", type: "text"},
             {src: "models/stanford-dragon/stanford-dragon.mtl", name:"models/stanford-dragon.mtl", type: "text"},
             {src: "../src/shaders/correction.fs", name:"correction.fs", type: "text"},
             {src: "../src/shaders/correction.vs", name:"correction.vs", type: "text"},
+            {src: "../src/shaders/debug.fs", name:"debug.fs", type: "text"},
+            {src: "../src/shaders/debug.vs", name:"debug.vs", type: "text"},
             {src: "../src/shaders/draw.fs", name:"draw.fs", type: "text"},
             {src: "../src/shaders/draw.vs", name:"draw.vs", type: "text"},
             {src: "../src/shaders/eyeraytrace.fs", name:"eyeraytrace.fs", type: "text"},
@@ -58,15 +61,25 @@ export class PhotonMapperTest {
         let numFilesLoaded = 0;
 
         filesToLoad.forEach((file) => {
-            fetch(file.src).then((response) => {
-                return file.type == "text" ? response.text() : response.arraybuffer();
-            }).then((contents) => {
-                file.type == "text" ? fs.addTextFile(file.name, contents) : fs.addBinFile(file.name, contents);
+
+            if(file.type == "image"){
+                let img = new Image();
+                img.src = file.src;
                 numFilesLoaded++;
-                if(numFilesLoaded == numFiles){
+                if (numFilesLoaded == numFiles) {
                     callback();
                 }
-            })
+            } else {
+                fetch(file.src).then((response) => {
+                    return file.type == "text" ? response.text() : response.arrayBuffer();
+                }).then((contents) => {
+                    file.type == "text" ? fs.addTextFile(file.name, contents) : fs.addBinFile(file.name, contents);
+                    numFilesLoaded++;
+                    if (numFilesLoaded == numFiles) {
+                        callback();
+                    }
+                })
+            }
 
         });
     }

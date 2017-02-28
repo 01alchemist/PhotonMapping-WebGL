@@ -493,8 +493,8 @@ export class CGPURT {
             }
             bbhitmiss = bbhitmiss + this.bboxDataSizeX;
         }
-
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, this.bboxDataSizeX * 2, this.bboxDataSizeY * 4, 0, gl.RGBA, gl.FLOAT, vec4array_to_f32Array(textureBVHSys));
+        let data:Float32Array = vec4array_to_f32Array(textureBVHSys);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, this.bboxDataSizeX * 2, this.bboxDataSizeY * 4, 0, gl.RGBA, gl.FLOAT, data);
     }
 
 

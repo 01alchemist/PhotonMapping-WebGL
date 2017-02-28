@@ -26,7 +26,9 @@ uniform vec3 hashMax;
 
 uniform float alpha;
 
-out vec4 [2] fragData;
+//out vec4 [2] fragData;
+layout(location = 0) out vec4 fragData0;
+layout(location = 1) out vec4 fragData1;
 
 float hash(const vec3 idx)
 {
@@ -128,6 +130,6 @@ void main()
 		QueryFlux = (QueryFlux + Flux) * g;
 	}
 
-	fragData[0] = vec4(QueryFlux, QueryRadius);
-	fragData[1] = vec4(QueryEmissionPhotonCount.rgb, QueryPhotonCount);
+	fragData0 = vec4(QueryFlux, QueryRadius);
+	fragData1 = vec4(QueryEmissionPhotonCount.rgb, QueryPhotonCount);
 }

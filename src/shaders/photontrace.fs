@@ -141,7 +141,7 @@ Intersection raytrace(const Ray ray)
 
 	int count = 0;
 
-	while (count < 7)
+	while (true)
 	{
 	    count++;
 		vec4 bboxMinMaxIndex = offsetToBBoxMinMax + (bboxIndex.xyxy - RootIndex.xyxy);
@@ -319,7 +319,8 @@ void generateLightSourceSample(inout vec4 rndv, out vec3 flux, out vec3 dir, out
 	vec2 lightIndex;
 
     int itr = 0;
-	while (itr < MAX_LOOP)
+	//while (itr < MAX_LOOP)
+	while (low < high)
 	{
 	    itr = itr + 1;
 		int mid = low + ((high - low) / int(2));

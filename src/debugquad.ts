@@ -20,7 +20,7 @@ export class DebugQuad {
 
 
         let image = new Image(1024, 1024);
-        image.src = "textures/debug_texture.jpg";
+        image.src = "textures/debug_texture_512x512.jpg";
         image.onload = () => {
             gl.activeTexture(gl.TEXTURE0);
             this.debugTexture = gl.createTexture();
@@ -67,11 +67,11 @@ export class DebugQuad {
 
     }
 
-    drawTex(texture?: WebGLTexture, w?, h?) {
+    drawTex(texture?: WebGLTexture, w:number=512, h:number=512) {
 
-        if (this.ready == false) {
-            return;
-        }
+        // if (this.ready == false) {
+        //     return;
+        // }
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
         gl.viewport(0, 0, w, h);
@@ -96,7 +96,6 @@ export class DebugQuad {
         gl.bindTexture(gl.TEXTURE_2D, texture);
         // gl.bindTexture(gl.TEXTURE_2D, this.debugTexture);
         gl.uniform1i(gl.getUniformLocation(this.shader, "input_tex"), 0);
-
 
         //bind vertex pos buffer
         gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexPosBuffer);

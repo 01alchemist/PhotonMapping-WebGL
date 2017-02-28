@@ -3,7 +3,7 @@
 precision mediump float;
 precision mediump sampler3D;
 
-const int MAX_LOOP = 1024;
+const int MAX_LOOP = 7;
 
 in vec2 v_texcoord_0;
 
@@ -102,8 +102,8 @@ Intersection raytrace(const Ray ray, const bool cullBackface)
 
     int count = 0;
 
-	//while (count < MAX_LOOP)
-	while (true)
+	while (count < MAX_LOOP)
+//	while (true)
 	{
 	    count++;
 		vec4 bboxMinMaxIndex = offsetToBBoxMinMax + (bboxIndex.xyxy - rootIndex.xyxy);
@@ -328,9 +328,9 @@ void main()
 	vec3 emi = vec3(0.0, 0.0, 0.0);
 	const float eps = 1e-5;
 
-    int excess = maxPathLength % 40;
+    int maxLen = maxPathLength > MAX_LOOP ? MAX_LOOP : maxPathLength;
 
-	for (int j = 0; j < maxPathLength; j++)
+	for (int j = 0; j < MAX_LOOP; j++)
 	{
 		Intersection i;
 		i = raytrace(r, j == 0);

@@ -35,19 +35,19 @@ void main()
 	vec3 QueryEmission = texture(queryEmissionPhotonCountTexture, PixelIndex).rgb;
 
 	// perform progressive density estimation
-//	fragmentColor = vec4(QueryFlux / (QueryRadius * QueryRadius * 3.141592 * totalPhotonNum), 1.0);
+	fragmentColor = vec4(QueryFlux / (QueryRadius * QueryRadius * 3.141592 * totalPhotonNum), 1.0);
 
 	// add emission
-//	fragmentColor = fragmentColor + vec4(QueryEmission, 0.0);
+	fragmentColor = fragmentColor + vec4(QueryEmission, 0.0);
 
 	// tone mapping
 	const float Exposure = 60000.0;
-//	fragmentColor = vec4(1.0) - exp(-fragmentColor * Exposure);
+	fragmentColor = vec4(1.0) - exp(-fragmentColor * Exposure);
 
 	// sRGB conversion
-//	fragmentColor.r = sRGB(fragmentColor.r);
-//	fragmentColor.g = sRGB(fragmentColor.g);
-//	fragmentColor.b = sRGB(fragmentColor.b);
+	fragmentColor.r = sRGB(fragmentColor.r);
+	fragmentColor.g = sRGB(fragmentColor.g);
+	fragmentColor.b = sRGB(fragmentColor.b);
 
-	fragmentColor = vec4(1.0, 0.5, 0.0, 1.0);
+//	fragmentColor = vec4(1.0, 0.5, 0.0, 1.0);
 }

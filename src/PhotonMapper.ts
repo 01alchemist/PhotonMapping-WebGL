@@ -64,7 +64,7 @@ let minMaxAveTextureQuery: FeedBackTexture; //feedback
 let minMaxAveSurfacePhoton: FeedBackBuffer;
 let minMaxAveTexturePhoton: FeedBackTexture; //feedback
 
-let fragmentsVBO: WebGLBuffer;
+let fragmentsVAO: WebGLBuffer;
 
 class XORShift {
     // XOR shift PRNG
@@ -443,18 +443,25 @@ export class PhotonMapper {
         queryPointSurface.addTexture(1, queryEmissionPhotonCountTexture);
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
-        // create a VBO
-        fragmentsVBO = gl.createBuffer();
-        gl.bindBuffer(gl.ARRAY_BUFFER, fragmentsVBO);
-        let vboData = new Float32Array(photonBufferSize * photonBufferSize);
+        // create a VAO
+        fragmentsVAO = gl.createVertexArray();
+        gl.bindVertexArray(fragmentsVAO);
+
+        // -- Init Buffer
+        let fragmentsPosBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, fragmentsPosBuffer);
+        let vaoData = new Float32Array(photonBufferSize * photonBufferSize);
         let k = 0;
         for (let j = 0; j < photonBufferSize; j++) {
             for (let i = 0; i < photonBufferSize; i++) {
-                vboData[k++] = (2.0 * ((i + 0.5) / (photonBufferSize)) - 1.0);
-                vboData[k++] = (2.0 * ((j + 0.5) / (photonBufferSize)) - 1.0);
+                vaoData[k++] = (2.0 * ((i + 0.5) / (photonBufferSize)) - 1.0);
+                vaoData[k++] = (2.0 * ((j + 0.5) / (photonBufferSize)) - 1.0);
             }
         }
-        gl.bufferData(gl.ARRAY_BUFFER, /*4 * 2 * photonBufferSize * photonBufferSize, */vboData, gl.STATIC_DRAW);
+        gl.bufferData(gl.ARRAY_BUFFER, vaoData, gl.STATIC_DRAW);
+        gl.enableVertexAttribArray(0); //position location in shader is always 0
+        gl.vertexAttribPointer(0, 1, gl.FLOAT, false, 0, 0);
+        gl.bindVertexArray(null);
 
         // initialize misc data
         frameCount = 0;
@@ -485,7 +492,7 @@ export class PhotonMapper {
         // enter the main loop
         console.log("start rendering...");
         this.randomizeTextures();
-        gl.clear(gl.COLOR_BUFFER_BIT);
+        // gl.clear(gl.COLOR_BUFFER_BIT);
         startedTime = performance.now();
         // glutMainLoop();
 
@@ -496,9 +503,9 @@ export class PhotonMapper {
 
     render() {
 
-        if (this.iteration++ > 100) {
-            return;
-        }
+        // if (this.iteration++ > 100) {
+        //     return;
+        // }
 
         let bboxOffsets = new Vector4();
         bboxOffsets.x = (                             0.5) / (gpurt.bboxDataSizeX * 2.0);
@@ -508,10 +515,12 @@ export class PhotonMapper {
 
         if (frameCount == 0) {
             // emission & local photon count
-            let tempData: Vector4[] = [];//
-            fillArray(tempData, Vector4, imageResolution * imageResolution);
+            let tempData: Float32Array = new Float32Array(imageResolution * imageResolution * 4);//
+            for (let i = 0; i < tempData.length; i++) {
+                tempData[i] = 0;
+            }
             this.setTexture(5, queryEmissionPhotonCountTexture.source);
-            gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, imageResolution, imageResolution, gl.RGBA, gl.FLOAT, vec4array_to_f32Array(tempData));
+            gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, imageResolution, imageResolution, gl.RGBA, gl.FLOAT, tempData);
         }
 
         // balance the cost of eye ray tracing and photon ray tracing
@@ -524,19 +533,16 @@ export class PhotonMapper {
             this.initializePhotons();
         }
 
+        this.photonTrace(bboxOffsets);
 
-        this.debugQuad.drawTex(eyeRayTraceSurface.textures[0].texture.source);
+        this.buildStochasticHashedGrid();
 
-        // this.photonTrace(bboxOffsets);
-        //
-        // this.buildStochasticHashedGrid();
-        //
-        // this.writeToHashedGrid();
-        //
-        // this.photonCorrection();
-        //
-        // this.radianceEstimation();
-        //
+        this.writeToHashedGrid();
+
+        this.photonCorrection();
+
+        this.radianceEstimation();
+
         // this.finalGathering();
 
         // this.debugPass();
@@ -558,7 +564,7 @@ export class PhotonMapper {
         gpurt.release();
 
         // delete things
-        gl.deleteBuffer(fragmentsVBO);
+        gl.deleteBuffer(fragmentsVAO);
 
         gl.deleteProgram(shaderDraw);
         gl.deleteProgram(shaderHash);
@@ -637,69 +643,63 @@ export class PhotonMapper {
     }
 
     randomizeTextures() {
-        let tempData: Vector4[] = [];
         // for eye rays
-        fillArray(tempData, Vector4, imageResolution * imageResolution);
+        let tempData: Float32Array;
 
-
-        this.setTexture(0, randomEyeRayTexture.source);
-        for (let j = 0; j < imageResolution; j++) {
-            for (let i = 0; i < imageResolution; i++) {
-                tempData[i + j * imageResolution] = new Vector4(XORShift.m_frand() * 4194304.0, XORShift.m_frand() * 4194304.0, XORShift.m_frand() * 4194304.0, XORShift.m_frand() * 4194304.0);
-            }
+        tempData = new Float32Array(imageResolution * imageResolution * 4);
+        for (let j = 0; j < tempData.length; j++) {
+            tempData[j] = Math.random();
         }
-        gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, imageResolution, imageResolution, gl.RGBA, gl.FLOAT, vec4array_to_f32Array(tempData));
+        this.setTexture(0, randomEyeRayTexture.source);
+        gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, imageResolution, imageResolution, gl.RGBA, gl.FLOAT, tempData);
 
         // for photons
-        tempData = [];
-        fillArray(tempData, Vector4, photonBufferSize * photonBufferSize);
-
-        this.setTexture(0, randomPhotonTexture.source);
-        for (let j = 0; j < photonBufferSize; j++) {
-            for (let i = 0; i < photonBufferSize; i++) {
-                tempData[i + j * photonBufferSize] = new Vector4(XORShift.m_frand() * 4194304.0, XORShift.m_frand() * 4194304.0, XORShift.m_frand() * 4194304.0, XORShift.m_frand() * 4194304.0);
-            }
+        tempData = new Float32Array(photonBufferSize * photonBufferSize * 4);
+        for (let j = 0; j < tempData.length; j++) {
+            tempData[j] = Math.random();
         }
-        gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, photonBufferSize, photonBufferSize, gl.RGBA, gl.FLOAT, vec4array_to_f32Array(tempData));
+        this.setTexture(1, randomPhotonTexture.source);
+        gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, photonBufferSize, photonBufferSize, gl.RGBA, gl.FLOAT, tempData);
     }
 
     private initializePhotons() {
-        let tempData: Vector4[] = [];
-        fillArray(tempData, Vector4, imageResolution * imageResolution);
+        let tempData: Float32Array;
+
+        tempData = new Float32Array(imageResolution * imageResolution * 4);
+        for (let j = 0; j < tempData.length;) {
+            tempData[j] = 0;
+            tempData[j + 1] = 0;
+            tempData[j + 2] = 0;
+            tempData[j + 3] = this.initialRadius;
+            j += 4;
+        }
         // accumulated (unnormalized) flux & radius
         this.setTexture(6, queryFluxRadiusTexture.source);
-        for (let j = 0; j < imageResolution; j++) {
-            for (let i = 0; i < imageResolution; i++) {
-                tempData[i + j * imageResolution] = new Vector4(0.0, 0.0, 0.0, this.initialRadius);
-            }
-        }
-        gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, imageResolution, imageResolution, gl.RGBA, gl.FLOAT, vec4array_to_f32Array(tempData));
+        gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, imageResolution, imageResolution, gl.RGBA, gl.FLOAT, tempData);
 
         // photon intersection
-        tempData = [];
-        fillArray(tempData, Vector4, photonBufferSize * photonBufferSize);
-        this.setTexture(7, photonIntersectionTexture.source);
-        for (let j = 0; j < photonBufferSize; j++) {
-            for (let i = 0; i < photonBufferSize; i++) {
-                tempData[i + j * photonBufferSize] = new Vector4(-1.0, -1.0, 0.0, 1.0e+30);
-            }
+        tempData = new Float32Array(photonBufferSize * photonBufferSize * 4);
+        for (let j = 0; j < tempData.length;) {
+            tempData[j] = -1;
+            tempData[j + 1] = -1;
+            tempData[j + 2] = 0;
+            tempData[j + 3] = 1.0e+30;
+            j += 4;
         }
-        gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, photonBufferSize, photonBufferSize, gl.RGBA, gl.FLOAT, vec4array_to_f32Array(tempData));
+        this.setTexture(7, photonIntersectionTexture.source);
+        gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, photonBufferSize, photonBufferSize, gl.RGBA, gl.FLOAT, tempData);
 
         numPhotons = 0.0;
     }
 
     private eyeRayTracing(bboxOffsets: Vector4) {
         // eye ray tracing
-
         //######################################
         //#      PASS 1 - EYE RAY TRACING      #
         //######################################
         eyeRayTraceSurface.bind();
 
         gl.useProgram(shaderEyeRayTrace);
-
-        // this.positionAttributeLocation = gl.getAttribLocation(shaderEyeRayTrace, "position");
 
         // ray tracing parameters
         gl.uniform4f(gl.getUniformLocation(shaderEyeRayTrace, "offsetToBBoxMinMax"), bboxOffsets.x, bboxOffsets.y, bboxOffsets.z, bboxOffsets.w);
@@ -756,6 +756,8 @@ export class PhotonMapper {
         this.quad.draw(shaderEyeRayTrace, imageResolution, imageResolution);
         //swap feedback textures
         eyeRayTraceSurface.swap();
+
+        this.debugQuad.drawTex(eyeRayTraceSurface.textures[1].texture.source, 512, 512);
 
         //######################################
         //#         REDUCE TEXTURES            #
@@ -894,13 +896,9 @@ export class PhotonMapper {
 
         gl.viewport(0, 0, hashResolution, hashResolution);
 
-        gl.bindBuffer(gl.ARRAY_BUFFER, fragmentsVBO);
-        // gl.enableClientState(gl.VERTEX_ARRAY);
-        // gl.vertexPointer(2, gl.FLOAT, 0, 0);
-        //gl.vertexAttribIPointer(0, 2, gl.INT, 0, 0);
+        gl.bindVertexArray(fragmentsVAO);
         gl.drawArrays(gl.POINTS, 0, photonBufferSize * photonBufferSize);
-        // glDisableClientState(gl.VERTEX_ARRAY);
-        gl.bindBuffer(gl.ARRAY_BUFFER, null);
+        gl.bindVertexArray(null);
         gl.disable(gl.DEPTH_TEST);
 
         // count the number of overlapped photons in the hashed grid
@@ -929,13 +927,9 @@ export class PhotonMapper {
         // glLoadIdentity();
         gl.viewport(0, 0, hashResolution, hashResolution);
 
-        gl.bindBuffer(gl.ARRAY_BUFFER, fragmentsVBO);
-        // gl.enableClientState(gl.VERTEX_ARRAY);
-        // glVertexPointer(2, gl.FLOAT, 0, 0);
-        // gl.vertexAttribIPointer(0, 2, gl.INT, 0, 0);
+        gl.bindVertexArray(fragmentsVAO);
         gl.drawArrays(gl.POINTS, 0, photonBufferSize * photonBufferSize);
-        // glDisableClientState(gl.VERTEX_ARRAY);
-        // gl.bindBuffer(gl.ARRAY_BUFFER, 0);
+        gl.bindVertexArray(null);
         gl.disable(gl.BLEND);
     }
 
@@ -1066,6 +1060,7 @@ export class PhotonMapper {
             gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.FLOAT, result);
             minMaxAveSurface.swap();
         }
+        // this.debugQuad.drawTex(texture, 512, 512);
         return result;
     }
 

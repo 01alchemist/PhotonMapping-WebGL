@@ -9,6 +9,7 @@ out vec4 fragmentColor;
 
 void main()
 {
-	fragmentColor = vec4(texture(input_tex, v_texcoord_0.st).rgb, 1.0);
+//	fragmentColor = vec4(texture(input_tex, v_texcoord_0.st).rgb, 1.0);
+	fragmentColor = texture(input_tex, v_texcoord_0.st);
 //	fragmentColor = vec4(1.0,0.0,0.0, 1.0);
 }

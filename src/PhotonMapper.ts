@@ -27,7 +27,7 @@ let apertureSize: number = 0.0;
 let m_nextUpdate: number = 0;
 let startedTime: number = 0;
 
-const maxNumberOfBounces: number = 5;
+const maxNumberOfBounces: number = 10;
 const imageResolution: number = 512;
 const photonBufferSize: number = imageResolution;
 const hashResolution: number = imageResolution;
@@ -133,6 +133,8 @@ class FeedBackBuffer {
         for (let i = 0; i < this.textures.length; i++) {
             let group = this.textures[i];
             group.texture.swap();
+             //gl.copyTexImage2D(target, level, internalformat, x, y, width, height, border);
+             gl.copyTexImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, 0, 0, imageResolution, imageResolution, 0);
             gl.framebufferTexture2D(gl.DRAW_FRAMEBUFFER, gl.COLOR_ATTACHMENT0 + group.index, gl.TEXTURE_2D, group.texture.target, 0);
         }
 
@@ -224,28 +226,6 @@ function createFullShader(vertex_shader_path: string, fragment_shader_path: stri
         console.error('Could not compile WebGL program. \n\n' + info);
     } else {
         // console.log("done.");
-    }
-
-    return program;
-}
-
-function createFragmentShader(shader_path: string) {
-    //create a fragment shader (the vertex shader is using the fixed-function pipeline)
-    let program = gl.createProgram();
-    console.log(`compiling ${shader_path}...`);
-    let fragmentShaderSource = fs.getTextFile(shader_path);
-
-    let shader = gl.createShader(gl.FRAGMENT_SHADER);
-    gl.shaderSource(shader, fragmentShaderSource);
-    gl.compileShader(shader);
-    gl.attachShader(program, shader);
-    gl.linkProgram(program);
-
-    if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-        let info = gl.getProgramInfoLog(program);
-        console.error('Could not compile WebGL program. \n\n' + info);
-    } else {
-        console.log("done.");
     }
 
     return program;
@@ -489,13 +469,12 @@ export class PhotonMapper {
             console.log("no light source is defined, use constant illumination");
         }
 
-        // enter the main loop
-        console.log("start rendering...");
         this.randomizeTextures();
+
+        // enter the main loop
         // gl.clear(gl.COLOR_BUFFER_BIT);
         startedTime = performance.now();
-        // glutMainLoop();
-
+        console.log("start rendering...");
         requestAnimationFrame(this.render.bind(this));
     }
 
@@ -517,7 +496,7 @@ export class PhotonMapper {
             // emission & local photon count
             let tempData: Float32Array = new Float32Array(imageResolution * imageResolution * 4);//
             for (let i = 0; i < tempData.length; i++) {
-                tempData[i] = 0;
+                tempData[i] = Math.random();
             }
             this.setTexture(5, queryEmissionPhotonCountTexture.source);
             gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, imageResolution, imageResolution, gl.RGBA, gl.FLOAT, tempData);
@@ -528,20 +507,22 @@ export class PhotonMapper {
             this.eyeRayTracing(bboxOffsets);
         }
 
+        //this.debugQuad.drawDummy();
+
         // initialized photons
         if (frameCount == 0) {
-            this.initializePhotons();
+            //this.initializePhotons();
         }
 
-        this.photonTrace(bboxOffsets);
-
-        this.buildStochasticHashedGrid();
-
-        this.writeToHashedGrid();
-
-        this.photonCorrection();
-
-        this.radianceEstimation();
+        // this.photonTrace(bboxOffsets);
+        //
+        // this.buildStochasticHashedGrid();
+        //
+        // this.writeToHashedGrid();
+        //
+        // this.photonCorrection();
+        //
+        // this.radianceEstimation();
 
         // this.finalGathering();
 
@@ -557,89 +538,6 @@ export class PhotonMapper {
         }
 
         requestAnimationFrame(this.render.bind(this));
-    }
-
-    distroy() {
-        // release the resources of gpurt
-        gpurt.release();
-
-        // delete things
-        gl.deleteBuffer(fragmentsVAO);
-
-        gl.deleteProgram(shaderDraw);
-        gl.deleteProgram(shaderHash);
-        gl.deleteProgram(shaderProgressiveUpdate);
-        gl.deleteProgram(shaderRadianceEstimate);
-        gl.deleteProgram(shaderScatter);
-        gl.deleteProgram(shaderCorrection);
-        gl.deleteProgram(shaderEyeRayTrace);
-        gl.deleteProgram(shaderPhotonTrace);
-
-        gl.deleteProgram(shaderMax);
-        gl.deleteProgram(shaderMin);
-        gl.deleteProgram(shaderSum);
-
-        gl.deleteTexture(queryPositionTexture);
-        gl.deleteTexture(queryNormalTexture);
-        queryEmissionPhotonCountTexture.distroy();
-        queryFluxRadiusTexture.distroy();
-        gl.deleteTexture(queryReflectanceTexture);
-        gl.deleteTexture(queryIntersectionTexture);
-
-        gl.deleteTexture(photonIndexTexture);
-        photonFluxTexture.distroy();
-        photonPositionTexture.distroy();
-        photonDirectionTexture.distroy();
-        randomPhotonTexture.distroy();
-        randomEyeRayTexture.distroy();
-        gl.deleteTexture(photonHashTexture);
-        gl.deleteTexture(photonCorrectionTexture);
-        photonIntersectionTexture.distroy();
-        gl.deleteTexture(photonEmittedFlagTexture);
-
-        minMaxAveTextureQuery.distroy();
-        minMaxAveSurfaceQuery.distroy();
-        minMaxAveTexturePhoton.distroy();
-        minMaxAveSurfacePhoton.distroy();
-
-        gl.deleteFramebuffer(photonHashSurface);
-        gl.deleteFramebuffer(photonCorrectionSurface);
-        gl.deleteFramebuffer(photonIndexSurface);
-        gl.deleteFramebuffer(queryPointSurface);
-        eyeRayTraceSurface.distroy();
-        photonRayTraceSurface.distroy();
-        gl.deleteRenderbuffer(photonHashDepthBuffer);
-
-        return 0;
-    }
-
-    createTexture(textureIndex, format: GLenum, bufferSize): WebGLTexture {
-        gl.activeTexture(gl.TEXTURE0 + textureIndex);
-        let texture: WebGLTexture = gl.createTexture();
-        gl.bindTexture(gl.TEXTURE_2D, texture);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-        gl.texImage2D(gl.TEXTURE_2D, 0, format, bufferSize, bufferSize, 0, gl.RGBA, gl.FLOAT, null);
-
-        return texture;
-    }
-
-    setTexture(textureIndex: number, texture: WebGLTexture): WebGLTexture {
-        gl.activeTexture(gl.TEXTURE0 + textureIndex);
-        gl.bindTexture(gl.TEXTURE_2D, texture);
-        return texture;
-    }
-
-    setCubeTexture(cubeTextureIndex, cubeTexture) {
-        gl.activeTexture(gl.TEXTURE0 + cubeTextureIndex);
-        gl.bindTexture(gl.TEXTURE_CUBE_MAP, cubeTexture);
-    }
-
-    setVolumeTexture(volumeTextureIndex, volumeTexture) {
-        gl.activeTexture(gl.TEXTURE0 + volumeTextureIndex);
-        gl.bindTexture(gl.TEXTURE_3D, volumeTexture);
     }
 
     randomizeTextures() {
@@ -737,8 +635,10 @@ export class PhotonMapper {
         gl.uniform3f(gl.getUniformLocation(shaderEyeRayTrace, "cameraParams"), vData.x, vData.y, vData.z);
 
         // antialiasing offset
-        vData.x = (XORShift.m_frand() - 0.5) * 1.25;
-        vData.y = (XORShift.m_frand() - 0.5) * 1.25;
+        // vData.x = (XORShift.m_frand() - 0.5) * 1.25;
+        // vData.y = (XORShift.m_frand() - 0.5) * 1.25;
+        vData.x = (Math.random() - 0.5) * 1.25;
+        vData.y = (Math.random() - 0.5) * 1.25;
         gl.uniform2f(gl.getUniformLocation(shaderEyeRayTrace, "AAOffset"), vData.x, vData.y);
 
         // some extra parameters
@@ -756,8 +656,12 @@ export class PhotonMapper {
         this.quad.draw(shaderEyeRayTrace, imageResolution, imageResolution);
         //swap feedback textures
         eyeRayTraceSurface.swap();
+        let debugTex1 = eyeRayTraceSurface.textures[1];
+        gl.readBuffer(gl.COLOR_ATTACHMENT0 + debugTex1.index);
+        this.debugQuad.drawTex(randomEyeRayTexture.source, 512, 512);
+        // this.debugQuad.drawTex(queryEmissionPhotonCountTexture.source, 512, 512);
 
-        this.debugQuad.drawTex(eyeRayTraceSurface.textures[1].texture.source, 512, 512);
+        return;
 
         //######################################
         //#         REDUCE TEXTURES            #
@@ -1064,4 +968,86 @@ export class PhotonMapper {
         return result;
     }
 
+    createTexture(textureIndex, format: GLenum, bufferSize): WebGLTexture {
+        gl.activeTexture(gl.TEXTURE0 + textureIndex);
+        let texture: WebGLTexture = gl.createTexture();
+        gl.bindTexture(gl.TEXTURE_2D, texture);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        gl.texImage2D(gl.TEXTURE_2D, 0, format, bufferSize, bufferSize, 0, gl.RGBA, gl.FLOAT, null);
+
+        return texture;
+    }
+
+    setTexture(textureIndex: number, texture: WebGLTexture): WebGLTexture {
+        gl.activeTexture(gl.TEXTURE0 + textureIndex);
+        gl.bindTexture(gl.TEXTURE_2D, texture);
+        return texture;
+    }
+
+    setCubeTexture(cubeTextureIndex, cubeTexture) {
+        gl.activeTexture(gl.TEXTURE0 + cubeTextureIndex);
+        gl.bindTexture(gl.TEXTURE_CUBE_MAP, cubeTexture);
+    }
+
+    setVolumeTexture(volumeTextureIndex, volumeTexture) {
+        gl.activeTexture(gl.TEXTURE0 + volumeTextureIndex);
+        gl.bindTexture(gl.TEXTURE_3D, volumeTexture);
+    }
+
+    distroy() {
+        // release the resources of gpurt
+        gpurt.release();
+
+        // delete things
+        gl.deleteBuffer(fragmentsVAO);
+
+        gl.deleteProgram(shaderDraw);
+        gl.deleteProgram(shaderHash);
+        gl.deleteProgram(shaderProgressiveUpdate);
+        gl.deleteProgram(shaderRadianceEstimate);
+        gl.deleteProgram(shaderScatter);
+        gl.deleteProgram(shaderCorrection);
+        gl.deleteProgram(shaderEyeRayTrace);
+        gl.deleteProgram(shaderPhotonTrace);
+
+        gl.deleteProgram(shaderMax);
+        gl.deleteProgram(shaderMin);
+        gl.deleteProgram(shaderSum);
+
+        gl.deleteTexture(queryPositionTexture);
+        gl.deleteTexture(queryNormalTexture);
+        queryEmissionPhotonCountTexture.distroy();
+        queryFluxRadiusTexture.distroy();
+        gl.deleteTexture(queryReflectanceTexture);
+        gl.deleteTexture(queryIntersectionTexture);
+
+        gl.deleteTexture(photonIndexTexture);
+        photonFluxTexture.distroy();
+        photonPositionTexture.distroy();
+        photonDirectionTexture.distroy();
+        randomPhotonTexture.distroy();
+        randomEyeRayTexture.distroy();
+        gl.deleteTexture(photonHashTexture);
+        gl.deleteTexture(photonCorrectionTexture);
+        photonIntersectionTexture.distroy();
+        gl.deleteTexture(photonEmittedFlagTexture);
+
+        minMaxAveTextureQuery.distroy();
+        minMaxAveSurfaceQuery.distroy();
+        minMaxAveTexturePhoton.distroy();
+        minMaxAveSurfacePhoton.distroy();
+
+        gl.deleteFramebuffer(photonHashSurface);
+        gl.deleteFramebuffer(photonCorrectionSurface);
+        gl.deleteFramebuffer(photonIndexSurface);
+        gl.deleteFramebuffer(queryPointSurface);
+        eyeRayTraceSurface.distroy();
+        photonRayTraceSurface.distroy();
+        gl.deleteRenderbuffer(photonHashDepthBuffer);
+
+        return 0;
+    }
 }

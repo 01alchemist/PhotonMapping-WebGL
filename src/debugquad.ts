@@ -67,6 +67,9 @@ export class DebugQuad {
 
     }
 
+    drawDummy() {
+        this.drawTex(this.debugTexture);
+    }
     drawTex(texture?: WebGLTexture, w:number=512, h:number=512) {
 
         // if (this.ready == false) {

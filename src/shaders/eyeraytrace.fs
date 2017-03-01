@@ -446,5 +446,6 @@ void main()
 	fragData2 = vec4(nrm, r.dir.b);
 	fragData3 = rndv;
 	fragData4 = lastIntersection;
-	fragData5 = queryEmissionPhotonCount;
+//	fragData5 = queryEmissionPhotonCount;
+	fragData5 = vec4(1.0,0.0,0.0,1.0);
 }
